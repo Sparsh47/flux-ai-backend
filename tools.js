@@ -217,6 +217,12 @@ DO NOT use for:
 
 ${history.summary ? `Previous Summary:\n${history.summary}` : ""}
 
+FORMATTING RULES (highest priority):
+- NEVER use markdown formatting (no **, no *, no #, no bullet lists with -, no backticks, no tables)
+- Write in plain, natural prose
+- ONLY use code blocks if the user explicitly asks a code-related question
+- Do not bold, italicize, or use any other markdown syntax
+
 Rules:
 - Use tools when needed
 - When a tool returns information, you MUST use it

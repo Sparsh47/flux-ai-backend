@@ -20,7 +20,9 @@ export async function runRag(query, history, sessionId = "default") {
         "system",
         `Use ONLY the provided context.
 
-        Return answer in natural language.
+        Return answer in plain natural language prose.
+        Do NOT use markdown formatting (no **, no *, no #, no bullet lists with -, no backticks, no tables).
+        ONLY use a code block if the user explicitly asks a code-related question.
         Do NOT return JSON.`,
       ],
       ["system", bestChunks.join("\n\n---\n\n")],
@@ -56,7 +58,9 @@ export async function runRAGStream(query, history) {
         "system",
         `Use ONLY the provided context.
 
-        Return answer in natural language.
+        Return answer in plain natural language prose.
+        Do NOT use markdown formatting (no **, no *, no #, no bullet lists with -, no backticks, no tables).
+        ONLY use a code block if the user explicitly asks a code-related question.
         Do NOT return JSON.`,
       ],
       ["system", bestChunks.join("\n\n---\n\n")],

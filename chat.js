@@ -9,7 +9,16 @@ export async function runChat(query) {
     temperature: 0,
   });
 
-  const prompt = ChatPromptTemplate.fromMessages([["human", "{input}"]]);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      `You are a helpful conversational assistant.
+Respond in plain natural language prose.
+Do NOT use markdown formatting (no **, no *, no #, no bullet lists with -, no backticks, no tables).
+ONLY use a code block if the user explicitly asks a code-related question.`,
+    ],
+    ["human", "{input}"],
+  ]);
 
   const chain = prompt.pipe(model);
 
