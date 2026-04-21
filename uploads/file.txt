@@ -1,0 +1,287 @@
+Proposal for a Verified Dating Platform
+Prepared for: The Curious Bunny Studios
+Prepared by: Sumedhav, Sparsh (Dev Team)
+Application Type: Cross-Platform Mobile Application
+1. Executive Summary
+Online dating platforms have significantly changed how people connect globally.
+However, modern dating applications face serious challenges such as catfishing,
+identity fraud, privacy concerns, and lack of trust between users.
+This proposal outlines the development of a cross-platform dating application
+focused on identity verification, user safety, and privacy-first communication.
+The primary goal of the platform is to create a trust-driven dating ecosystem
+where users can evaluate the credibility of profiles through tiered verification
+levels, while maintaining strong privacy controls and secure communication.
+The platform will be built using React Native for cross-platform mobile
+development and a Node.js backend architecture, ensuring scalability and
+performance for a global audience.
+
+-- 1 of 12 --
+
+2. Problem Statement
+Modern dating platforms face several persistent issues that reduce user trust
+and safety.
+2.1 Catfishing & Fake Profiles
+Many users create fake profiles using stolen images or misleading information to
+deceive others.
+This results in:
+● Emotional harm
+● Scams and fraud
+● Reduced trust in the platform
+2.2 Privacy Risks
+Users are often exposed to privacy risks such as:
+● Screenshots of private conversations
+● Unwanted sharing of personal information
+● Early exposure of sensitive data like phone numbers or addresses
+2.3 Inefficient Matching Systems
+Many applications rely on simplistic matching algorithms that do not consider
+important user boundaries.
+Users often want:
+● Non-negotiable preferences
+● Lifestyle compatibility
+● Cultural or religious considerations
+Without proper filtering, user experience deteriorates.
+
+-- 2 of 12 --
+
+3. Proposed Solution
+We propose a Verified Dating Platform designed to prioritize trust, privacy, and
+compatibility.
+The platform introduces the following key innovations:
+1. Incentivized Verification System
+Users can choose multiple levels of verification to increase their trust score.
+2. Privacy-First Communication
+Strict privacy controls prevent unauthorized sharing of sensitive information.
+3. Intelligent Matching Filters
+A hybrid filtering system using Hard Filters and Soft Filters ensures
+compatibility while maintaining inclusivity.
+4. Core Features
+4.1 Multi-Level Profile Verification
+To eliminate catfishing, the platform introduces a three-tier verification model.
+Level 1 — Basic Verification
+● Face recognition during onboarding
+● Live selfie validation
+● Ensures the user matches uploaded photos
+Level 2 — Trustworthy Verification (Optional)
+Users can connect verified social accounts such as:
+● Instagram
+● Facebook
+● Snapchat
+
+-- 3 of 12 --
+
+Additionally:
+● Government ID verification may be performed.
+Level 3 — Secure Verification (Optional Future Feature)
+A deeper trust level may include:
+● Background verification
+● Criminal record checks (subject to legal and regional compliance)
+This tier is optional to maintain low onboarding friction while enabling higher
+trust levels for serious users.
+4.2 Privacy Protection System
+User privacy will be protected through multiple mechanisms.
+Screenshot Protection
+● Android: Screenshot blocking using secure window flags
+● iOS: Screenshot detection with warning and potential content masking
+Personal Data Protection
+Sensitive information such as:
+● Phone numbers
+● Addresses
+will remain hidden until both users mutually approve sharing after matching.
+Reporting System
+Users can report profiles for:
+● harassment
+● inappropriate content
+● suspicious behaviour
+
+-- 4 of 12 --
+
+4.3 Matching System
+The application will implement a hybrid matching model.
+Hard Filters (Non-Negotiable)
+These filters strictly control which profiles are shown.
+Examples include:
+● Orientation
+● Religion
+● Relationship goals
+● Age range
+Soft Filters
+These influence but do not strictly limit matching.
+Examples include:
+● Distance radius
+● Lifestyle preferences
+● Dating intentions (casual / serious / unsure)
+This approach ensures inclusivity while respecting user boundaries.
+5. Messaging Features
+The platform will include modern messaging features similar to those present in
+leading dating applications.
+Core messaging capabilities include:
+● Text messaging
+● Voice messages
+
+-- 5 of 12 --
+
+● Image sharing
+● Video sharing
+● Read receipts
+● Typing indicators
+● Disappearing messages
+● Media moderation
+● Optional video calling (future phase)
+Messaging will only unlock after mutual matching between users.
+6. Location Based Matching
+The application will support radius-based matching.
+Users can define a preferred distance range (for example 5km–100km).
+Location will be used only to:
+● show nearby profiles
+● improve matching relevance
+Exact locations will never be shared publicly.
+7. Safety Features
+Safety is a key differentiator of the platform.
+The application will include:
+User Reporting
+Instant reporting of suspicious or abusive accounts.
+
+-- 6 of 12 --
+
+Profile Flagging System
+Repeated reports will automatically flag profiles for review.
+Emergency Contact Feature (Future Phase)
+Users may optionally add emergency contacts when going on a date.
+Date Safety Check-ins (Future Phase)
+Users can notify trusted contacts when meeting someone.
+8. Admin Dashboard
+An administrative dashboard will allow platform moderators to manage the
+system effectively.
+Key admin capabilities include:
+User Management
+● Ban users
+● Suspend accounts
+● Delete accounts
+Verification Management
+● Review verification submissions
+● Approve or reject verification levels
+Content Moderation
+● Review reported messages
+● Review reported profiles
+Analytics
+● User activity
+● Match success rate
+● Safety reports
+
+-- 7 of 12 --
+
+9. Technical Architecture (Subject to changes)
+The platform will follow a modern scalable architecture.
+Mobile Application
+Built using:
+● React Native
+This allows a single codebase for:
+● iOS
+● Android
+Backend Server
+The backend will be built using:
+● Node.js
+● Express.js
+Responsibilities include:
+● authentication
+● matchmaking logic
+● messaging services
+● verification services
+● moderation systems
+Database Layer
+Primary database:
+● PostgreSQL
+For:
+● user profiles
+● matches
+● chat metadata
+● verification data
+
+-- 8 of 12 --
+
+Real-Time Messaging
+Real-time communication will use:
+● WebSockets (Socket.IO)
+For:
+● instant chat
+● typing indicators
+● message delivery
+Caching Layer
+Redis will be used for:
+● session storage
+● caching matches
+● rate limiting
+● real-time data optimization
+10. Third-Party Services
+Several external services may be required.
+Authentication
+● Firebase Auth
+● Auth0
+Face Verification
+● AWS Rekognition
+● FaceIO
+● Onfido
+Identity Verification
+● Onfido
+● Persona
+● Sumsub
+
+-- 9 of 12 --
+
+Cloud Storage
+● AWS S3
+● Cloudflare R2
+Used for:
+● profile images
+● media uploads
+Push Notifications
+● Firebase Cloud Messaging
+● OneSignal
+AI Moderation (Future Integration)
+● AWS Rekognition
+● Google Vision API
+Used for:
+● nudity detection
+● spam detection
+● harassment monitoring
+Maps & Location
+● Google Maps API
+
+-- 10 of 12 --
+
+11. Security & Compliance
+The platform will implement strict security measures.
+Data Encryption
+All sensitive data will be encrypted using:
+● HTTPS / TLS
+● secure token authentication
+Authentication
+● JWT based authentication
+● refresh tokens
+Rate Limiting
+Protection against bot attacks and spam.
+GDPR Considerations
+Since the application targets a global audience, the system should follow:
+● GDPR privacy standards
+● user data deletion requests
+
+-- 11 of 12 --
+
+14. Conclusion
+This proposed platform addresses major issues in online dating through a
+verification-first ecosystem, privacy-focused design, and secure
+communication infrastructure.
+By prioritizing user trust and safety, the application has the potential to stand
+out significantly in the modern dating app landscape.
+The proposed architecture ensures that the platform can scale globally while
+maintaining performance, security, and reliability.
+15. Total Estimated Development Duration
+Approximately 12 – 16 Weeks (2 – 3 Months)
+This timeline may vary depending on:
+● feature changes
+● AI integrations
+● verification integrations
+● additional messaging features
+
+-- 12 of 12 --
+

@@ -1,0 +1,62 @@
+[
+  {
+    "query": "Who is Sparsh?",
+    "expected": "Sparsh Shandilya is a fullstack developer"
+  },
+  {
+    "query": "What projects has he built?",
+    "expected": "He has built Versaile, Rest-ez, and Nexum"
+  },
+  {
+    "query": "What is Nexum?",
+    "expected": "Nexum is a real-time collaborative development platform that includes code editing, communication tools, version control, and built-in AI assistance"
+  },
+  {
+    "query": "Where has he interned?",
+    "expected": "Innov8Labs and Web3ProjectLinks"
+  },
+  {
+    "query": "What does he do in his free time?",
+    "expected": "He enjoys watching anime, exploring new technologies, and writing technical blogs"
+  },
+  {
+    "query": "What is his tech stack?",
+    "expected": "His technical stack includes MongoDB, PostgreSQL, React.js, Next.js, Node.js, Express.js, and Tailwind CSS"
+  },
+  {
+    "query": "What is 40 + 20?",
+    "expected": "60"
+  },
+  {
+    "query": "Subtract 15 from 50",
+    "expected": "35"
+  },
+  {
+    "query": "Multiply 12 by 8",
+    "expected": "96"
+  },
+  {
+    "query": "Divide 100 by 5",
+    "expected": "20"
+  },
+  {
+    "query": "Convert the word Sparsh to uppercase",
+    "expected": "SPARSH"
+  },
+  {
+    "query": "Convert the text NEXTJS to lowercase",
+    "expected": "nextjs"
+  },
+  {
+    "query": "What is the length of the string 'fullstack developer'?",
+    "expected": "19"
+  },
+  {
+    "query": "Who is Sparsh and convert his name to uppercase and give length",
+    "expected": "Sparsh Shandilya is a fullstack developer. His name in uppercase is SPARSH, and the length is 6."
+  },
+  {
+    "query": "Hello, how are you?",
+    "expected": "I am a computer program here to help you. How can I assist you today?"
+  }
+]
