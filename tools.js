@@ -146,6 +146,8 @@ export async function runTool(query) {
 }
 
 export async function* runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", fileNames = []) {
+  const hasFiles = fileNames && fileNames.length > 0;
+
   const ragSearch = tool(
     async ({ query: q }) => {
       console.log(`Running [ragSearch] with args: query="${q}"`);
@@ -163,18 +165,12 @@ export async function* runToolAgent(query, history = { messages: [], summary: ""
     {
       name: "ragSearch",
       description: `
-Use this tool for:
-- questions about people (e.g., Sparsh)
-- questions about projects (e.g., Nexum)
-- factual queries
-- queries with pronouns (he, she, his, etc.)
-- queries depending on previous conversation
-- questions concerning attached files and uploaded documents
-
-You MUST use this tool before answering such questions.
+Use this tool ONLY when the user has uploaded a document or attachment in this conversation.
+Use it to answer questions about the contents of those uploaded files.
+DO NOT use this tool for general knowledge, greetings, math, or string operations.
 `,
       schema: z.object({
-        query: z.string().describe("The question to search in the knowledge base"),
+        query: z.string().describe("The question to search in the uploaded documents"),
       }),
     },
   );
@@ -187,13 +183,10 @@ You MUST use this tool before answering such questions.
     {
       name: "generalChat",
       description: `
-Use ONLY for:
-- greetings
-- casual conversation
-
-DO NOT use for:
-- factual questions
-- questions about people or projects
+Use for:
+- greetings and casual conversation
+- general knowledge questions when NO documents have been uploaded
+- any query that does not require searching uploaded files
 `,
       schema: z.object({
         query: z.string(),
@@ -201,7 +194,10 @@ DO NOT use for:
     },
   );
 
-  const allTools = [...mathTools, ...stringTools, ragSearch, chatFallback];
+  // Only expose ragSearch when the user has actually uploaded documents
+  const allTools = hasFiles
+    ? [...mathTools, ...stringTools, ragSearch, chatFallback]
+    : [...mathTools, ...stringTools, chatFallback];
 
   const model = new ChatOllama({
     baseUrl: BASE_URL,
@@ -209,48 +205,41 @@ DO NOT use for:
     temperature: 0,
   });
 
-  const agent = createReactAgent({
-    llm: model,
-    tools: allTools,
-    maxIterations: 5,
-    prompt: `You are an intelligent agent.
+  const systemPrompt = `You are an intelligent assistant.
 
-${history.summary ? `Previous Summary:\n${history.summary}` : ""}
+${history.summary ? `Previous conversation summary:\n${history.summary}\n` : ""}
+${hasFiles
+  ? `The user has uploaded the following file(s): ${fileNames.join(", ")}.
+You have access to a ragSearch tool to look up content from these documents.
+Use ragSearch when the user asks about the contents of these files.
+Do NOT use ragSearch for unrelated general questions.`
+  : `No documents have been uploaded in this conversation.
+Do NOT use ragSearch — it will return nothing useful.
+Answer general questions directly or use generalChat.`
+}
 
 FORMATTING RULES (highest priority):
 - NEVER use markdown formatting (no **, no *, no #, no bullet lists with -, no backticks, no tables)
 - Write in plain, natural prose
 - ONLY use code blocks if the user explicitly asks a code-related question
-- Do not bold, italicize, or use any other markdown syntax
 
-Rules:
-- Use tools when needed
-- When a tool returns information, you MUST use it
-- Do NOT ignore tool results
+GENERAL RULES:
+- Use tools when appropriate
+- When a tool returns information, use it in your answer
 - Do NOT hallucinate
-- Answer ALL parts of the question
+- Answer all parts of the question
+- For string operations, use the EXACT text provided by the user
 
-TOOL RULES:
-- If query is about people, projects, or facts → ALWAYS use ragSearch
-- If query contains pronouns (he, she, it, his, their) → ALWAYS use ragSearch
-- If query asks about an attached file, document, or uploaded text → ALWAYS use ragSearch
-- If unsure → use ragSearch
-- DO NOT guess without using ragSearch first
+${hasFiles ? `RAG DATA RULE:
+- If ragSearch returns "NO_DATA_FOUND", say "I don't have enough information in the uploaded documents."
+- Do NOT fall back to general knowledge for document-specific questions` : ""}
+`;
 
-IMPORTANT:
-- If ragSearch has already been used → DO NOT call it again
-- Use the result and answer
-
-NO DATA RULE:
-- If ragSearch returns "NO_DATA_FOUND":
-  → Say "I don't have enough information"
-  → DO NOT hallucinate
-  → DO NOT use general knowledge
-
-STRING RULE:
-- For string operations, use EXACT text from user
-- DO NOT expand using RAG results
-`,
+  const agent = createReactAgent({
+    llm: model,
+    tools: allTools,
+    maxIterations: 5,
+    prompt: systemPrompt,
   });
 
   const formattedMessages = history.messages.map((h) => {
@@ -289,13 +278,5 @@ STRING RULE:
     }
   }
 
-  const usedTools = result.messages.some(
-    (m) => m.tool_calls && m.tool_calls.length > 0,
-  );
-
-  if (!usedTools) {
-    console.log(
-      `[Agent] Answered directly from memory without using any tools for query: "${query}"`,
-    );
-  }
+  console.log(`[Agent] Stream complete for query: "${query}"`);
 }

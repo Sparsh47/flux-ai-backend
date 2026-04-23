@@ -1,0 +1,9 @@
+{
+  "watch": ["."],
+  "ext": "js,mjs,cjs",
+  "ignore": [
+    "uploads/",
+    "*-embeddings-*.json",
+    "*-clusters-*.json"
+  ]
+}
