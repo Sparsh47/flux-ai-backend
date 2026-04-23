@@ -7,7 +7,7 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
  * Extracts the first JSON object from a string, handling markdown fences
  * and any surrounding prose that local models like llama3.1 tend to add.
  */
-function extractJson(text) {
+function extractJson(text: string): any {
   // Strip markdown code fences (```json ... ``` or ``` ... ```)
   const stripped = text.replace(/```(?:json)?\s*([\s\S]*?)```/gi, "$1").trim();
 
@@ -22,12 +22,16 @@ function extractJson(text) {
   }
 }
 
-export async function routeQuery(query) {
+interface RouteResponse {
+  route: "tool" | "rag" | "direct";
+}
+
+export async function routeQuery(query: string): Promise<RouteResponse> {
   const model = new ChatOllama({
     baseUrl: BASE_URL,
     model: MODEL,
     temperature: 0,
-  });
+  } as any);
 
   const lower = query.toLowerCase();
 
@@ -58,7 +62,7 @@ export async function routeQuery(query) {
     ["human", "{input}"],
   ]);
 
-  const chain = prompt.pipe(model).pipe(new StringOutputParser());
+  const chain = (prompt as any).pipe(model).pipe(new StringOutputParser());
 
   const raw = await chain.invoke({ input: lower });
 
@@ -70,5 +74,5 @@ export async function routeQuery(query) {
   }
 
   console.log("ROUTER RAW:", raw, "→ PARSED:", parsed);
-  return parsed;
+  return parsed as RouteResponse;
 }

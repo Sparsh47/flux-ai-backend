@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import path from "path";
 import multer from "multer";
@@ -14,11 +14,11 @@ app.use(cors());
 app.use(express.json());
 
 const storage = multer.diskStorage({
-  destination: (req, res, cb) => {
+  destination: (req: any, file: any, cb: any) => {
     cb(null, "uploads/")
   },
-  filename: (req, file, cb) => {
-    const sessionId = req.body.sessionId || "default";
+  filename: (req: any, file: any, cb: any) => {
+    const sessionId = (req.body as any).sessionId || "default";
     console.log("File: ", file)
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9) + "-" + file.originalname;
     cb(null, `${sessionId}-${uniqueSuffix}`);
@@ -30,9 +30,20 @@ const uploads = multer({ storage })
 // Serve Vite frontend build
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-export let sessions = {};
+interface Message {
+  role: 'assistant' | 'user';
+  content: string;
+  attachments?: string[];
+}
 
-app.get("/api/sessions", (req, res) => {
+interface Session {
+  messages: Message[];
+  summary: string;
+}
+
+export let sessions: Record<string, Session> = {};
+
+app.get("/api/sessions", (req: Request, res: Response) => {
   const sessionData = Object.keys(sessions).map(id => {
     let baseSum = sessions[id].summary || "New Chat";
     if (baseSum === "New Chat" && sessions[id].messages.length > 0) {
@@ -46,9 +57,10 @@ app.get("/api/sessions", (req, res) => {
   res.json(sessionData);
 });
 
-app.get("/api/sessions/:id", (req, res) => {
-  if (sessions[req.params.id]) {
-    res.json(sessions[req.params.id].messages.map(m => ({
+app.get("/api/sessions/:id", (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  if (sessions[id]) {
+    res.json(sessions[id].messages.map(m => ({
       role: m.role || 'user',
       content: m.content
     })));
@@ -60,7 +72,7 @@ app.get("/api/sessions/:id", (req, res) => {
 app.use("/api/chat", uploads.array("files"), chatRouter);
 
 // Front-end catch-all
-app.get(/^\/(.*)/, (req, res) => {
+app.get(/^\/(.*)/, (req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });
 

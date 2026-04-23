@@ -1,16 +1,18 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { sessions } from "../server.js";
 import { runToolAgent } from "../tools.js";
 import { updateMemory } from "../utils.js";
+// @ts-ignore
 import { PDFParse } from "pdf-parse";
 import fs from "fs"
 import { buildEmbeddings } from "../buildEmbeddings.js";
 
 export const chatRouter = Router();
 
-chatRouter.post("/", async (req, res) => {
+chatRouter.post("/", async (req: Request, res: Response) => {
     const { query, sessionId = "default" } = req.body;
-    const file = req.files && req.files.length > 0 ? req.files[0] : null;
+    const files = (req.files as Express.Multer.File[]) || [];
+    const file = files.length > 0 ? files[0] : null;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
@@ -24,7 +26,8 @@ chatRouter.post("/", async (req, res) => {
     if (file) {
         const filePath = file.path;
 
-        const parser = new PDFParse({ url: filePath })
+        // Note: PDFParse usage from original code
+        const parser = new (PDFParse as any)({ url: filePath })
         const data = await parser.getText()
         const text = data.text
 
@@ -38,7 +41,8 @@ chatRouter.post("/", async (req, res) => {
     const history = sessions[sessionId];
 
     if (!query) {
-        return res.status(400).json({ error: "Query required" });
+        res.status(400).json({ error: "Query required" });
+        return;
     }
 
     try {
@@ -48,7 +52,7 @@ chatRouter.post("/", async (req, res) => {
 
         for await (const chunk of stream) {
             res.write(chunk)
-            result += chunk
+            result += (chunk as string)
         }
 
         updateMemory(history, query, result, fileNames);

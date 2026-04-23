@@ -2,32 +2,26 @@ import { ChatOllama } from "@langchain/ollama";
 import { BASE_URL, MODEL } from "./constants.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-
 export async function rewriteQuery(query, history) {
-
     if (!/\b(he|she|it|they|this|that|file|document|resume|pdf)\b/i.test(query)) {
         return query;
     }
-
     const model = new ChatOllama({
         baseUrl: BASE_URL,
         model: MODEL,
         temperature: 0,
     });
-
     const parser = new StringOutputParser();
-
     const contextStr = history.messages
         .slice(-4)
         .map((m) => {
-            let c = `${m.role}: ${m.content}`;
-            if (m.attachments && m.attachments.length > 0) {
-                c += ` (Attached: ${m.attachments.join(", ")})`;
-            }
-            return c;
-        })
+        let c = `${m.role}: ${m.content}`;
+        if (m.attachments && m.attachments.length > 0) {
+            c += ` (Attached: ${m.attachments.join(", ")})`;
+        }
+        return c;
+    })
         .join("\n");
-
     const prompt = ChatPromptTemplate.fromMessages([
         [
             "system",
@@ -55,15 +49,11 @@ Rewritten Query:`,
         ],
         ["human", "{input}"],
     ]);
-
     const chain = prompt.pipe(model).pipe(parser);
-
     const result = await chain.invoke({ input: query, context: contextStr, query: query });
-
     if (!result) {
         console.warn("Router could not parse response.");
         return null;
     }
-
     return result;
 }

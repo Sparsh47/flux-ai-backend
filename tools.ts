@@ -9,7 +9,7 @@ import { runChat } from "./chat.js";
 import { rewriteQuery } from "./query.js";
 
 const addTool = tool(
-  async ({ a, b }) => {
+  async ({ a, b }: { a: number; b: number }) => {
     console.log(`Running [add_numbers] with args: a=${a}, b=${b}`);
     return a + b;
   },
@@ -24,7 +24,7 @@ const addTool = tool(
 );
 
 const subtractTool = tool(
-  async ({ a, b }) => {
+  async ({ a, b }: { a: number; b: number }) => {
     console.log(`Running [subtract_numbers] with args: a=${a}, b=${b}`);
     return a - b;
   },
@@ -39,7 +39,7 @@ const subtractTool = tool(
 );
 
 const multiplyTool = tool(
-  async ({ a, b }) => {
+  async ({ a, b }: { a: number; b: number }) => {
     console.log(`Running [multiply_numbers] with args: a=${a}, b=${b}`);
     return a * b;
   },
@@ -54,7 +54,7 @@ const multiplyTool = tool(
 );
 
 const divideTool = tool(
-  async ({ a, b }) => {
+  async ({ a, b }: { a: number; b: number }) => {
     console.log(`Running [divide_numbers] with args: a=${a}, b=${b}`);
     return a / b;
   },
@@ -71,7 +71,7 @@ const divideTool = tool(
 const mathTools = [addTool, subtractTool, multiplyTool, divideTool];
 
 const toUpperCaseTool = tool(
-  async ({ text }) => {
+  async ({ text }: { text: string }) => {
     console.log(`Running [to_uppercase] with args: text="${text}"`);
     return text.toUpperCase();
   },
@@ -85,7 +85,7 @@ const toUpperCaseTool = tool(
 );
 
 const toLowerCaseTool = tool(
-  async ({ text }) => {
+  async ({ text }: { text: string }) => {
     console.log(`Running [to_lowercase] with args: text="${text}"`);
     return text.toLowerCase();
   },
@@ -99,7 +99,7 @@ const toLowerCaseTool = tool(
 );
 
 const getLengthTool = tool(
-  async ({ text }) => {
+  async ({ text }: { text: string }) => {
     console.log(`Running [get_length] with args: text="${text}"`);
     return text.length;
   },
@@ -114,12 +114,12 @@ const getLengthTool = tool(
 
 const stringTools = [toUpperCaseTool, toLowerCaseTool, getLengthTool];
 
-export async function runTool(query) {
+export async function runTool(query: string) {
   const model = new ChatOllama({
     baseUrl: BASE_URL,
     model: MODEL,
     temperature: 0,
-  }).bindTools(mathTools);
+  } as any).bindTools(mathTools);
 
   const prompt = ChatPromptTemplate.fromMessages([
     [
@@ -129,9 +129,9 @@ export async function runTool(query) {
     ["human", "{input}"],
   ]);
 
-  const agent = prompt.pipe(model);
+  const agent = (prompt as any).pipe(model);
 
-  const result = await agent.invoke({
+  const result: any = await agent.invoke({
     input: query,
   });
 
@@ -145,14 +145,30 @@ export async function runTool(query) {
   }
 }
 
-export async function* runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", fileNames = []) {
+interface Message {
+  role: string;
+  content: string;
+  attachments?: string[];
+}
+
+interface History {
+  messages: Message[];
+  summary: string;
+}
+
+export async function* runToolAgent(
+  query: string,
+  history: History = { messages: [], summary: "" },
+  sessionId: string = "default",
+  fileNames: string[] = []
+) {
   const hasFiles = fileNames && fileNames.length > 0;
 
   const ragSearch = tool(
-    async ({ query: q }) => {
+    async ({ query: q }: { query: string }) => {
       console.log(`Running [ragSearch] with args: query="${q}"`);
 
-      const rewrittenQuery = await rewriteQuery(q, history);
+      const rewrittenQuery = (await rewriteQuery(q, history)) || q;
 
       const result = await runRag(rewrittenQuery, history, sessionId);
 
@@ -176,7 +192,7 @@ DO NOT use this tool for general knowledge, greetings, math, or string operation
   );
 
   const chatFallback = tool(
-    async ({ query: q }) => {
+    async ({ query: q }: { query: string }) => {
       console.log(`Running [generalChat] with args: query="${q}"`);
       return await runChat(q);
     },
@@ -203,7 +219,7 @@ Use for:
     baseUrl: BASE_URL,
     model: MODEL,
     temperature: 0,
-  });
+  } as any);
 
   const systemPrompt = `You are an intelligent assistant.
 
@@ -238,7 +254,6 @@ ${hasFiles ? `RAG DATA RULE:
   const agent = createReactAgent({
     llm: model,
     tools: allTools,
-    maxIterations: 5,
     prompt: systemPrompt,
   });
 
@@ -256,7 +271,7 @@ ${hasFiles ? `RAG DATA RULE:
   }
 
 
-  const stream = await agent.streamEvents({
+  const stream: any = await agent.streamEvents({
     messages: [
       ...formattedMessages,
       { role: "user", content: finalQuery }

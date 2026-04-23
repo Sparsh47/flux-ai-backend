@@ -1,7 +1,6 @@
 import fs from "fs";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { JsonOutputParser } from "@langchain/core/output_parsers";
 import { cosineSimilarity, getCentroid, getEmbedding } from "./embedding.js";
 import { BASE_URL, MODEL } from "./constants.js";
 
@@ -9,11 +8,23 @@ const model = new ChatOllama({
   baseUrl: BASE_URL,
   model: MODEL,
   temperature: 0,
-});
+} as any);
 
-export async function runRag(query, history, sessionId = "default") {
+interface Message {
+  role: string;
+  content: string;
+}
+
+interface History {
+  messages: Message[];
+  summary: string;
+}
+
+export async function runRag(query: string, history: History, sessionId: string = "default") {
   try {
     const bestChunks = await retrieveChunks(query, history, sessionId);
+
+    if (!bestChunks) return "";
 
     const prompt = ChatPromptTemplate.fromMessages([
       [
@@ -30,9 +41,9 @@ export async function runRag(query, history, sessionId = "default") {
       ["human", "{input}"],
     ]);
 
-    const chain = prompt.pipe(model);
+    const chain = (prompt as any).pipe(model);
 
-    const inputs = {
+    const inputs: any = {
       input: query,
       history: history.messages,
     };
@@ -41,17 +52,20 @@ export async function runRag(query, history, sessionId = "default") {
       inputs.history = [{ role: "system", content: "Previous summary: " + history.summary }, ...inputs.history];
     }
 
-    const res = await chain.invoke(inputs);
+    const res: any = await chain.invoke(inputs);
 
     return res.content;
   } catch (err) {
     console.error("Error encountered: ", err);
+    return "";
   }
 }
 
-export async function runRAGStream(query, history) {
+export async function runRAGStream(query: string, history: History) {
   try {
     const bestChunks = await retrieveChunks(query, history);
+
+    if (!bestChunks) return null;
 
     const prompt = ChatPromptTemplate.fromMessages([
       [
@@ -68,9 +82,9 @@ export async function runRAGStream(query, history) {
       ["human", "{input}"],
     ]);
 
-    const chain = prompt.pipe(model);
+    const chain = (prompt as any).pipe(model);
 
-    const inputs = {
+    const inputs: any = {
       input: query,
       history: history.messages,
     };
@@ -84,11 +98,11 @@ export async function runRAGStream(query, history) {
     return stream;
   } catch (err) {
     console.error("Error encountered: ", err);
+    return null;
   }
 }
 
-async function retrieveChunks(query, history, sessionId = "default") {
-  let bestChunks = [];
+async function retrieveChunks(query: string, history: History, sessionId: string = "default") {
   const folderPath = "./clusters";
 
   try {
@@ -98,12 +112,12 @@ async function retrieveChunks(query, history, sessionId = "default") {
 
     const queryEmbedding = await getEmbedding(enrichedQuery);
 
-    let clusters = [];
+    let clusters: any[] = [];
 
     try {
       if (fs.existsSync(folderPath)) {
         const files = fs.readdirSync(folderPath);
-        const filteredFiles = files.filter(file => file.startsWith(sessionId));
+        const filteredFiles = files.filter((file: string) => file.startsWith(sessionId));
 
         if (filteredFiles.length > 0) {
           for (const file of filteredFiles) {
@@ -151,13 +165,13 @@ async function retrieveChunks(query, history, sessionId = "default") {
 
     const reranked = await rerankChunks(query, scored.map((c) => c.text));
 
-    bestChunks = reranked.slice(0, 5);
-
-    return bestChunks;
-  } catch (err) { }
+    return reranked.slice(0, 5);
+  } catch (err) {
+    return [];
+  }
 }
 
-function keywordScore(query, text) {
+function keywordScore(query: string, text: string) {
   const words = query.toLowerCase().split(/\s+/);
   const textLower = text.toLowerCase();
 
@@ -172,13 +186,13 @@ function keywordScore(query, text) {
   return matches / words.length;
 }
 
-async function rerankChunks(query, chunks) {
+async function rerankChunks(query: string, chunks: string[]) {
   try {
     const model = new ChatOllama({
       baseUrl: BASE_URL,
       model: MODEL,
       temperature: 0,
-    });
+    } as any);
 
     const modifiedChunks = chunks.map((c, i) => `${i}: ${c}`).join("\n\n")
 
@@ -203,15 +217,15 @@ Output:
       ["human", "{input}"],
     ]);
 
-    const agent = prompt.pipe(model);
+    const agent = (prompt as any).pipe(model);
 
-    const result = await agent.invoke({
+    const result: any = await agent.invoke({
       query: query,
       chunks: modifiedChunks,
       input: query,
     });
 
-    let indices;
+    let indices: number[];
     try {
       const match = result.content.match(/\[.*?\]/);
       indices = JSON.parse(match ? match[0] : result.content);

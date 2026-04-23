@@ -1,13 +1,24 @@
 import fs from "fs";
 import { getEmbedding } from "./embedding.js";
 
-export async function buildEmbeddings(inputFile = "note.txt", embeddingsFile = "embeddings.json", clustersFile = "clusters.json", numClusters = 3) {
-  let embeddings = [];
-  const clusters = Array.from({ length: numClusters }, () => []);
+interface EmbeddingObject {
+  id: number;
+  chunk: string;
+  embedding: number[];
+}
+
+export async function buildEmbeddings(
+  inputFile: string = "note.txt",
+  embeddingsFile: string = "embeddings.json",
+  clustersFile: string = "clusters.json",
+  numClusters: number = 3
+) {
+  let embeddings: EmbeddingObject[] = [];
+  const clusters: EmbeddingObject[][] = Array.from({ length: numClusters }, () => []);
 
   try {
-    const fileContent = fs.readFileSync(inputFile, "utf8");
-    const chunks = fileContent.split("\n").filter(chunk => chunk.trim() !== "");
+    const fileContent: string = fs.readFileSync(inputFile, "utf8");
+    const chunks = fileContent.split("\n").filter((chunk: string) => chunk.trim() !== "");
 
     let id = 1;
 

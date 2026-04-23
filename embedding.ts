@@ -1,6 +1,6 @@
 import { BASE_URL } from "./constants.js";
 
-export async function getEmbedding(query) {
+export async function getEmbedding(query: string): Promise<number[]> {
   const res = await fetch(`${BASE_URL}/api/embeddings`, {
     method: "POST",
     headers: {
@@ -12,12 +12,12 @@ export async function getEmbedding(query) {
     }),
   });
 
-  const data = await res.json();
+  const data: any = await res.json();
 
   return data.embedding;
 }
 
-export function cosineSimilarity(a, b) {
+export function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0;
   let magA = 0;
   let magB = 0;
@@ -34,7 +34,12 @@ export function cosineSimilarity(a, b) {
   return dot / (magA * magB);
 }
 
-export function getCentroid(cluster) {
+interface ClusterItem {
+  embedding: number[];
+  chunk: string;
+}
+
+export function getCentroid(cluster: ClusterItem[]): number[] {
   const dim = cluster[0].embedding.length;
   const centroid = new Array(dim).fill(0);
 
