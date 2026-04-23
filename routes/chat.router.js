@@ -12,6 +12,11 @@ chatRouter.post("/", async (req, res) => {
     const { query, sessionId = "default" } = req.body;
     const file = req.files && req.files.length > 0 ? req.files[0] : null;
 
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
     if (!sessions[sessionId]) {
         sessions[sessionId] = { messages: [], summary: "" };
     }
@@ -25,7 +30,7 @@ chatRouter.post("/", async (req, res) => {
 
         fs.writeFileSync("uploads/file.txt", text, "utf8");
 
-        let fileCount = Date.now(); // Better than 0 to prevent accidental data overwrites when multiple files are sent
+        let fileCount = Date.now();
 
         await buildEmbeddings("uploads/file.txt", `${sessionId}-embeddings-${fileCount}.json`, `${sessionId}-clusters-${fileCount}.json`, 3);
     }
@@ -38,19 +43,25 @@ chatRouter.post("/", async (req, res) => {
 
     try {
         const fileNames = file ? [file.originalname] : [];
-        const result = await runToolAgent(query, history, sessionId, fileNames);
+        const stream = runToolAgent(query, history, sessionId, fileNames);
+        let result = "";
+
+        for await (const chunk of stream) {
+            res.write(chunk)
+            result += chunk
+        }
 
         updateMemory(history, query, result, fileNames);
 
-        res.json({
-            result: result,
-        });
-    } catch (err) {
-        console.error(err);
+        res.end()
+    } catch (error) {
+        console.error("Streaming Error:", error);
 
-        res.status(500).json({
-            success: false,
-            error: "RAG failed",
-        });
+        if (!res.headersSent) {
+            res.status(500).send("Internal Server Error");
+        } else {
+            res.write("\n\n[System: An error occurred while generating the response.]");
+            res.end();
+        }
     }
 })

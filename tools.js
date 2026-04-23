@@ -145,7 +145,7 @@ export async function runTool(query) {
   }
 }
 
-export async function runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", fileNames = []) {
+export async function* runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", fileNames = []) {
   const ragSearch = tool(
     async ({ query: q }) => {
       console.log(`Running [ragSearch] with args: query="${q}"`);
@@ -266,23 +266,45 @@ STRING RULE:
     finalQuery = `[Attached Files: ${fileNames.join(", ")}]\n${query}`;
   }
 
-  const result = await agent.invoke({
+  // const result = await agent.invoke({
+  //   messages: [
+  //     ...formattedMessages,
+  //     { role: "user", content: finalQuery },
+  //   ],
+  // });
+
+  const stream = await agent.streamEvents({
     messages: [
-      ...formattedMessages,
-      { role: "user", content: finalQuery },
-    ],
-  });
+      // ...formattedMessages,
+      { role: "user", content: finalQuery }
+    ]
+  },
+    { version: "v2" });
 
-  const usedTools = result.messages.some(
-    (m) => m.tool_calls && m.tool_calls.length > 0,
-  );
+  console.log("Agent Response: ");
 
-  if (!usedTools) {
-    console.log(
-      `[Agent] Answered directly from memory without using any tools for query: "${query}"`,
-    );
+  for await (const event of stream) {
+    const eventType = event.event;
+
+    if (eventType === "on_chat_model_stream") {
+      const chunk = event.data.chunk
+
+      if (chunk.content) {
+        yield chunk.content
+      }
+    }
   }
 
-  const lastMessage = result.messages.at(-1);
-  return lastMessage?.content ?? "";
+  // const usedTools = result.messages.some(
+  //   (m) => m.tool_calls && m.tool_calls.length > 0,
+  // );
+
+  // if (!usedTools) {
+  //   console.log(
+  //     `[Agent] Answered directly from memory without using any tools for query: "${query}"`,
+  //   );
+  // }
+
+  // const lastMessage = result.messages.at(-1);
+  // return lastMessage?.content ?? "";
 }
