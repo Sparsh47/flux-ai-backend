@@ -266,16 +266,10 @@ STRING RULE:
     finalQuery = `[Attached Files: ${fileNames.join(", ")}]\n${query}`;
   }
 
-  // const result = await agent.invoke({
-  //   messages: [
-  //     ...formattedMessages,
-  //     { role: "user", content: finalQuery },
-  //   ],
-  // });
 
   const stream = await agent.streamEvents({
     messages: [
-      // ...formattedMessages,
+      ...formattedMessages,
       { role: "user", content: finalQuery }
     ]
   },
@@ -295,16 +289,13 @@ STRING RULE:
     }
   }
 
-  // const usedTools = result.messages.some(
-  //   (m) => m.tool_calls && m.tool_calls.length > 0,
-  // );
+  const usedTools = result.messages.some(
+    (m) => m.tool_calls && m.tool_calls.length > 0,
+  );
 
-  // if (!usedTools) {
-  //   console.log(
-  //     `[Agent] Answered directly from memory without using any tools for query: "${query}"`,
-  //   );
-  // }
-
-  // const lastMessage = result.messages.at(-1);
-  // return lastMessage?.content ?? "";
+  if (!usedTools) {
+    console.log(
+      `[Agent] Answered directly from memory without using any tools for query: "${query}"`,
+    );
+  }
 }
