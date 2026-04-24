@@ -4,6 +4,7 @@ import path from "path";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import { chatRouter } from "./routes/chat.router.js";
+import { setupAndRunQdrant } from "./config/qdrant.config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -21,6 +22,7 @@ const storage = multer.diskStorage({
     }
 });
 const uploads = multer({ storage });
+await setupAndRunQdrant();
 // Serve Vite frontend build
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 export let sessions = {};

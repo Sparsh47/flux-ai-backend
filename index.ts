@@ -1,8 +1,8 @@
-import fs from "fs";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { cosineSimilarity, getCentroid, getEmbedding } from "./embedding.js";
+import { getEmbedding } from "./embedding.js";
 import { BASE_URL, MODEL } from "./constants.js";
+import { searchVector } from "./config/qdrant.config.js";
 
 const model = new ChatOllama({
   baseUrl: BASE_URL,
@@ -103,8 +103,6 @@ export async function runRAGStream(query: string, history: History) {
 }
 
 async function retrieveChunks(query: string, history: History, sessionId: string = "default") {
-  const folderPath = "./clusters";
-
   try {
     const enrichedQuery = history.messages.length || history.summary
       ? history.summary + " " + history.messages.map((m) => m.content).join(" ") + " " + query
@@ -112,78 +110,14 @@ async function retrieveChunks(query: string, history: History, sessionId: string
 
     const queryEmbedding = await getEmbedding(enrichedQuery);
 
-    let clusters: any[] = [];
+    const result = await searchVector(queryEmbedding, enrichedQuery);
 
-    try {
-      if (fs.existsSync(folderPath)) {
-        const files = fs.readdirSync(folderPath);
-        const filteredFiles = files.filter((file: string) => file.startsWith(sessionId));
-
-        if (filteredFiles.length > 0) {
-          for (const file of filteredFiles) {
-            console.log("Using session cluster:", file);
-            clusters.push(...JSON.parse(fs.readFileSync(`clusters/${file}`, "utf8")));
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load custom clusters:", err);
-    }
-
-    if (clusters.length === 0) {
-      console.log("No custom clusters found for session, using native fallback clusters.");
-      clusters = JSON.parse(fs.readFileSync("clusters.json", "utf8"));
-    }
-
-    const clusterScores = clusters.map((cluster) => {
-      const centroid = getCentroid(cluster);
-
-      const score = cosineSimilarity(centroid, queryEmbedding);
-
-      return { cluster, score };
-    });
-
-    clusterScores.sort((a, b) => b.score - a.score);
-
-    const topClusters = clusterScores.slice(0, 2);
-
-    const combined = topClusters.flatMap((c) => c.cluster);
-
-    const scored = combined.map((item) => {
-      const semanticScore = cosineSimilarity(item.embedding, queryEmbedding);
-      const keywordMatch = keywordScore(enrichedQuery, item.chunk);
-
-      const score = 0.7 * semanticScore + 0.3 * keywordMatch;
-
-      return {
-        text: item.chunk,
-        score,
-      };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-
-    const reranked = await rerankChunks(query, scored.map((c) => c.text));
+    const reranked = await rerankChunks(query, (result as any).points.map((c: any) => c.payload?.chunk as string));
 
     return reranked.slice(0, 5);
   } catch (err) {
     return [];
   }
-}
-
-function keywordScore(query: string, text: string) {
-  const words = query.toLowerCase().split(/\s+/);
-  const textLower = text.toLowerCase();
-
-  let matches = 0;
-
-  for (const word of words) {
-    if (textLower.includes(word)) {
-      matches++;
-    }
-  }
-
-  return matches / words.length;
 }
 
 async function rerankChunks(query: string, chunks: string[]) {

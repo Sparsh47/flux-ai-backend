@@ -1,8 +1,8 @@
-import fs from "fs";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { cosineSimilarity, getCentroid, getEmbedding } from "./embedding.js";
+import { getEmbedding } from "./embedding.js";
 import { BASE_URL, MODEL } from "./constants.js";
+import { searchVector } from "./config/qdrant.config.js";
 const model = new ChatOllama({
     baseUrl: BASE_URL,
     model: MODEL,
@@ -85,61 +85,51 @@ async function retrieveChunks(query, history, sessionId = "default") {
             ? history.summary + " " + history.messages.map((m) => m.content).join(" ") + " " + query
             : query;
         const queryEmbedding = await getEmbedding(enrichedQuery);
-        let clusters = [];
-        try {
-            if (fs.existsSync(folderPath)) {
-                const files = fs.readdirSync(folderPath);
-                const filteredFiles = files.filter((file) => file.startsWith(sessionId));
-                if (filteredFiles.length > 0) {
-                    for (const file of filteredFiles) {
-                        console.log("Using session cluster:", file);
-                        clusters.push(...JSON.parse(fs.readFileSync(`clusters/${file}`, "utf8")));
-                    }
-                }
-            }
-        }
-        catch (err) {
-            console.error("Failed to load custom clusters:", err);
-        }
-        if (clusters.length === 0) {
-            console.log("No custom clusters found for session, using native fallback clusters.");
-            clusters = JSON.parse(fs.readFileSync("clusters.json", "utf8"));
-        }
-        const clusterScores = clusters.map((cluster) => {
-            const centroid = getCentroid(cluster);
-            const score = cosineSimilarity(centroid, queryEmbedding);
-            return { cluster, score };
-        });
-        clusterScores.sort((a, b) => b.score - a.score);
-        const topClusters = clusterScores.slice(0, 2);
-        const combined = topClusters.flatMap((c) => c.cluster);
-        const scored = combined.map((item) => {
-            const semanticScore = cosineSimilarity(item.embedding, queryEmbedding);
-            const keywordMatch = keywordScore(enrichedQuery, item.chunk);
-            const score = 0.7 * semanticScore + 0.3 * keywordMatch;
-            return {
-                text: item.chunk,
-                score,
-            };
-        });
-        scored.sort((a, b) => b.score - a.score);
-        const reranked = await rerankChunks(query, scored.map((c) => c.text));
+        const result = await searchVector(queryEmbedding, enrichedQuery);
+        // console.log("Search Vector Result: ", await searchVector(queryEmbedding))
+        // let clusters: any[] = [];
+        // try {
+        //   if (fs.existsSync(folderPath)) {
+        //     const files = fs.readdirSync(folderPath);
+        //     const filteredFiles = files.filter((file: string) => file.startsWith(sessionId));
+        //     if (filteredFiles.length > 0) {
+        //       for (const file of filteredFiles) {
+        //         console.log("Using session cluster:", file);
+        //         clusters.push(...JSON.parse(fs.readFileSync(`clusters/${file}`, "utf8")));
+        //       }
+        //     }
+        //   }
+        // } catch (err) {
+        //   console.error("Failed to load custom clusters:", err);
+        // }
+        // if (clusters.length === 0) {
+        //   console.log("No custom clusters found for session, using native fallback clusters.");
+        //   clusters = JSON.parse(fs.readFileSync("clusters.json", "utf8"));
+        // }
+        // const clusterScores = clusters.map((cluster) => {
+        //   const centroid = getCentroid(cluster);
+        //   const score = cosineSimilarity(centroid, queryEmbedding);
+        //   return { cluster, score };
+        // });
+        // clusterScores.sort((a, b) => b.score - a.score);
+        // const topClusters = clusterScores.slice(0, 2);
+        // const combined = topClusters.flatMap((c) => c.cluster);
+        // const scored = result.map((item) => {
+        //   const semanticScore = item.score;
+        //   const keywordMatch = keywordScore(enrichedQuery, item.payload!.chunk!);
+        //   const score = 0.7 * semanticScore + 0.3 * keywordMatch;
+        //   return {
+        //     text: item.payload!.chunk!,
+        //     score,
+        //   };
+        // });
+        // scored.sort((a, b) => b.score - a.score);
+        const reranked = await rerankChunks(query, result.points.map((c) => c.payload?.chunk));
         return reranked.slice(0, 5);
     }
     catch (err) {
         return [];
     }
-}
-function keywordScore(query, text) {
-    const words = query.toLowerCase().split(/\s+/);
-    const textLower = text.toLowerCase();
-    let matches = 0;
-    for (const word of words) {
-        if (textLower.includes(word)) {
-            matches++;
-        }
-    }
-    return matches / words.length;
 }
 async function rerankChunks(query, chunks) {
     try {

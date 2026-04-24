@@ -1,0 +1,22 @@
+import z from "zod";
+import process from "node:process";
+
+// Load .env file
+if (typeof process.loadEnvFile === "function") {
+    process.loadEnvFile();
+}
+
+const envSchema = z.object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    QDRANT_HTTP_URL: z.string(),
+    QDRANT_RPC_URL: z.string()
+});
+
+const _serverEnv = envSchema.safeParse(process.env)
+
+if (!_serverEnv.success) {
+    console.error("❌ Invalid environment variables:", _serverEnv.error.issues);
+    process.exit(1);
+}
+
+export const env = _serverEnv.data;

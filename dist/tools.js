@@ -203,7 +203,6 @@ ${hasFiles ? `RAG DATA RULE:
             { role: "user", content: finalQuery }
         ]
     }, { version: "v2" });
-    console.log("Agent Response: ");
     for await (const event of stream) {
         const eventType = event.event;
         if (eventType === "on_chat_model_stream") {

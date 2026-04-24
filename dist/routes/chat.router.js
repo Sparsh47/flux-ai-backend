@@ -25,8 +25,7 @@ chatRouter.post("/", async (req, res) => {
         const data = await parser.getText();
         const text = data.text;
         fs.writeFileSync("uploads/file.txt", text, "utf8");
-        let fileCount = Date.now();
-        await buildEmbeddings("uploads/file.txt", `${sessionId}-embeddings-${fileCount}.json`, `${sessionId}-clusters-${fileCount}.json`, 3);
+        await buildEmbeddings("uploads/file.txt");
     }
     const history = sessions[sessionId];
     if (!query) {

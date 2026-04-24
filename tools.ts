@@ -225,14 +225,14 @@ Use for:
 
 ${history.summary ? `Previous conversation summary:\n${history.summary}\n` : ""}
 ${hasFiles
-  ? `The user has uploaded the following file(s): ${fileNames.join(", ")}.
+      ? `The user has uploaded the following file(s): ${fileNames.join(", ")}.
 You have access to a ragSearch tool to look up content from these documents.
 Use ragSearch when the user asks about the contents of these files.
 Do NOT use ragSearch for unrelated general questions.`
-  : `No documents have been uploaded in this conversation.
+      : `No documents have been uploaded in this conversation.
 Do NOT use ragSearch — it will return nothing useful.
 Answer general questions directly or use generalChat.`
-}
+    }
 
 FORMATTING RULES (highest priority):
 - NEVER use markdown formatting (no **, no *, no #, no bullet lists with -, no backticks, no tables)
@@ -278,8 +278,6 @@ ${hasFiles ? `RAG DATA RULE:
     ]
   },
     { version: "v2" });
-
-  console.log("Agent Response: ");
 
   for await (const event of stream) {
     const eventType = event.event;

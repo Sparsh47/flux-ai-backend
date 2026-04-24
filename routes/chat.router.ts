@@ -2,7 +2,6 @@ import { Router, Request, Response } from "express";
 import { sessions } from "../server.js";
 import { runToolAgent } from "../tools.js";
 import { updateMemory } from "../utils.js";
-// @ts-ignore
 import { PDFParse } from "pdf-parse";
 import fs from "fs"
 import { buildEmbeddings } from "../buildEmbeddings.js";
@@ -33,9 +32,7 @@ chatRouter.post("/", async (req: Request, res: Response) => {
 
         fs.writeFileSync("uploads/file.txt", text, "utf8");
 
-        let fileCount = Date.now();
-
-        await buildEmbeddings("uploads/file.txt", `${sessionId}-embeddings-${fileCount}.json`, `${sessionId}-clusters-${fileCount}.json`, 3);
+        await buildEmbeddings("uploads/file.txt");
     }
 
     const history = sessions[sessionId];
