@@ -2,10 +2,10 @@ import { Router } from "express";
 import { sessions } from "../server.js";
 import { runToolAgent } from "../tools.js";
 import { updateMemory } from "../utils.js";
-// @ts-ignore
 import { PDFParse } from "pdf-parse";
 import fs from "fs";
 import { buildEmbeddings } from "../buildEmbeddings.js";
+import { logger } from "../config/logger.js";
 export const chatRouter = Router();
 chatRouter.post("/", async (req, res) => {
     const { query, sessionId = "default" } = req.body;
@@ -19,11 +19,11 @@ chatRouter.post("/", async (req, res) => {
         sessions[sessionId] = { messages: [], summary: "" };
     }
     if (file) {
-        const filePath = file.path;
-        // Note: PDFParse usage from original code
-        const parser = new PDFParse({ url: filePath });
+        const fileBuffer = fs.readFileSync(file.path);
+        const parser = new PDFParse({ data: fileBuffer });
         const data = await parser.getText();
         const text = data.text;
+        logger.info({ filename: file.originalname }, "Parsed PDF content");
         fs.writeFileSync("uploads/file.txt", text, "utf8");
         await buildEmbeddings("uploads/file.txt");
     }

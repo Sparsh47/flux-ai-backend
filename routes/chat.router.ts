@@ -5,6 +5,7 @@ import { updateMemory } from "../utils.js";
 import { PDFParse } from "pdf-parse";
 import fs from "fs"
 import { buildEmbeddings } from "../buildEmbeddings.js";
+import { logger } from "../config/logger.js";
 
 export const chatRouter = Router();
 
@@ -23,12 +24,12 @@ chatRouter.post("/", async (req: Request, res: Response) => {
     }
 
     if (file) {
-        const filePath = file.path;
+        const fileBuffer = fs.readFileSync(file.path);
 
-        // Note: PDFParse usage from original code
-        const parser = new (PDFParse as any)({ url: filePath })
-        const data = await parser.getText()
-        const text = data.text
+        const parser = new PDFParse({ data: fileBuffer });
+        const data = await parser.getText();
+        const text = data.text;
+        logger.info({ filename: file.originalname }, "Parsed PDF content");
 
         fs.writeFileSync("uploads/file.txt", text, "utf8");
 

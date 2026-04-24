@@ -3,6 +3,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { getEmbedding } from "./embedding.js";
 import { BASE_URL, MODEL } from "./constants.js";
 import { searchVector } from "./config/qdrant.config.js";
+import { logger } from "./config/logger.js";
 const model = new ChatOllama({
     baseUrl: BASE_URL,
     model: MODEL,
@@ -79,55 +80,18 @@ export async function runRAGStream(query, history) {
     }
 }
 async function retrieveChunks(query, history, sessionId = "default") {
-    const folderPath = "./clusters";
     try {
         const enrichedQuery = history.messages.length || history.summary
             ? history.summary + " " + history.messages.map((m) => m.content).join(" ") + " " + query
             : query;
         const queryEmbedding = await getEmbedding(enrichedQuery);
         const result = await searchVector(queryEmbedding, enrichedQuery);
-        // console.log("Search Vector Result: ", await searchVector(queryEmbedding))
-        // let clusters: any[] = [];
-        // try {
-        //   if (fs.existsSync(folderPath)) {
-        //     const files = fs.readdirSync(folderPath);
-        //     const filteredFiles = files.filter((file: string) => file.startsWith(sessionId));
-        //     if (filteredFiles.length > 0) {
-        //       for (const file of filteredFiles) {
-        //         console.log("Using session cluster:", file);
-        //         clusters.push(...JSON.parse(fs.readFileSync(`clusters/${file}`, "utf8")));
-        //       }
-        //     }
-        //   }
-        // } catch (err) {
-        //   console.error("Failed to load custom clusters:", err);
-        // }
-        // if (clusters.length === 0) {
-        //   console.log("No custom clusters found for session, using native fallback clusters.");
-        //   clusters = JSON.parse(fs.readFileSync("clusters.json", "utf8"));
-        // }
-        // const clusterScores = clusters.map((cluster) => {
-        //   const centroid = getCentroid(cluster);
-        //   const score = cosineSimilarity(centroid, queryEmbedding);
-        //   return { cluster, score };
-        // });
-        // clusterScores.sort((a, b) => b.score - a.score);
-        // const topClusters = clusterScores.slice(0, 2);
-        // const combined = topClusters.flatMap((c) => c.cluster);
-        // const scored = result.map((item) => {
-        //   const semanticScore = item.score;
-        //   const keywordMatch = keywordScore(enrichedQuery, item.payload!.chunk!);
-        //   const score = 0.7 * semanticScore + 0.3 * keywordMatch;
-        //   return {
-        //     text: item.payload!.chunk!,
-        //     score,
-        //   };
-        // });
-        // scored.sort((a, b) => b.score - a.score);
+        logger.debug({ sessionId, chunkCount: result.points.length }, "Retrieved chunks from Qdrant");
         const reranked = await rerankChunks(query, result.points.map((c) => c.payload?.chunk));
         return reranked.slice(0, 5);
     }
     catch (err) {
+        logger.error({ err, sessionId }, "Failed to retrieve chunks");
         return [];
     }
 }

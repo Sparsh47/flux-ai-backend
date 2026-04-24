@@ -3,3 +3,4 @@ node_modules/
 pgdata
 qdrant_storage
 .DS_Store
+/generated/prisma

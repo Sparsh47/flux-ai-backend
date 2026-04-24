@@ -5,18 +5,24 @@ import multer from "multer";
 import { fileURLToPath } from "url";
 import { chatRouter } from "./routes/chat.router.js";
 import { setupAndRunQdrant } from "./config/qdrant.config.js";
+import { logger } from "./config/logger.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+// Request logging middleware
+app.use((req, res, next) => {
+    logger.info({ method: req.method, url: req.url }, "Incoming request");
+    next();
+});
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, "uploads/");
     },
     filename: (req, file, cb) => {
         const sessionId = req.body.sessionId || "default";
-        console.log("File: ", file);
+        logger.debug({ sessionId, originalname: file.originalname }, "Uploading file");
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9) + "-" + file.originalname;
         cb(null, `${sessionId}-${uniqueSuffix}`);
     }
@@ -56,6 +62,7 @@ app.use("/api/chat", uploads.array("files"), chatRouter);
 app.get(/^\/(.*)/, (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });
-app.listen(8000, () => {
-    console.log("Server is listening on port 8000");
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+    logger.info(`Server is listening on port ${PORT}`);
 });

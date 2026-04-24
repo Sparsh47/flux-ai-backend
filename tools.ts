@@ -7,10 +7,11 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { runRag } from "./index.js";
 import { runChat } from "./chat.js";
 import { rewriteQuery } from "./query.js";
+import { logger } from "./config/logger.js";
 
 const addTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
-    console.log(`Running [add_numbers] with args: a=${a}, b=${b}`);
+    logger.info({ a, b }, "Running add_numbers tool");
     return a + b;
   },
   {
@@ -25,7 +26,7 @@ const addTool = tool(
 
 const subtractTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
-    console.log(`Running [subtract_numbers] with args: a=${a}, b=${b}`);
+    logger.info({ a, b }, "Running subtract_numbers tool");
     return a - b;
   },
   {
@@ -40,7 +41,7 @@ const subtractTool = tool(
 
 const multiplyTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
-    console.log(`Running [multiply_numbers] with args: a=${a}, b=${b}`);
+    logger.info({ a, b }, "Running multiply_numbers tool");
     return a * b;
   },
   {
@@ -55,7 +56,7 @@ const multiplyTool = tool(
 
 const divideTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
-    console.log(`Running [divide_numbers] with args: a=${a}, b=${b}`);
+    logger.info({ a, b }, "Running divide_numbers tool");
     return a / b;
   },
   {
@@ -72,7 +73,7 @@ const mathTools = [addTool, subtractTool, multiplyTool, divideTool];
 
 const toUpperCaseTool = tool(
   async ({ text }: { text: string }) => {
-    console.log(`Running [to_uppercase] with args: text="${text}"`);
+    logger.info({ text }, "Running to_uppercase tool");
     return text.toUpperCase();
   },
   {
@@ -86,7 +87,7 @@ const toUpperCaseTool = tool(
 
 const toLowerCaseTool = tool(
   async ({ text }: { text: string }) => {
-    console.log(`Running [to_lowercase] with args: text="${text}"`);
+    logger.info({ text }, "Running to_lowercase tool");
     return text.toLowerCase();
   },
   {
@@ -100,7 +101,7 @@ const toLowerCaseTool = tool(
 
 const getLengthTool = tool(
   async ({ text }: { text: string }) => {
-    console.log(`Running [get_length] with args: text="${text}"`);
+    logger.info({ text }, "Running get_length tool");
     return text.length;
   },
   {
@@ -166,7 +167,7 @@ export async function* runToolAgent(
 
   const ragSearch = tool(
     async ({ query: q }: { query: string }) => {
-      console.log(`Running [ragSearch] with args: query="${q}"`);
+      logger.info({ query: q }, "Running ragSearch tool");
 
       const rewrittenQuery = (await rewriteQuery(q, history)) || q;
 
@@ -193,7 +194,7 @@ DO NOT use this tool for general knowledge, greetings, math, or string operation
 
   const chatFallback = tool(
     async ({ query: q }: { query: string }) => {
-      console.log(`Running [generalChat] with args: query="${q}"`);
+      logger.info({ query: q }, "Running generalChat tool");
       return await runChat(q);
     },
     {
@@ -291,5 +292,5 @@ ${hasFiles ? `RAG DATA RULE:
     }
   }
 
-  console.log(`[Agent] Stream complete for query: "${query}"`);
+  logger.info({ query, sessionId }, "Agent stream complete");
 }

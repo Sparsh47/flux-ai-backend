@@ -2,6 +2,7 @@ import { ChatOllama } from "@langchain/ollama";
 import { BASE_URL, MODEL } from "./constants.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import { logger } from "./config/logger.js";
 export async function rewriteQuery(query, history) {
     if (!/\b(he|she|it|they|this|that|file|document|resume|pdf)\b/i.test(query)) {
         return query;
@@ -52,8 +53,9 @@ Rewritten Query:`,
     const chain = prompt.pipe(model).pipe(parser);
     const result = await chain.invoke({ input: query, context: contextStr, query: query });
     if (!result) {
-        console.warn("Router could not parse response.");
+        logger.warn({ query }, "Query rewriter returned empty result");
         return null;
     }
+    logger.debug({ original: query, rewritten: result }, "Query rewritten");
     return result;
 }

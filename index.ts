@@ -3,6 +3,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { getEmbedding } from "./embedding.js";
 import { BASE_URL, MODEL } from "./constants.js";
 import { searchVector } from "./config/qdrant.config.js";
+import { logger } from "./config/logger.js";
 
 const model = new ChatOllama({
   baseUrl: BASE_URL,
@@ -112,10 +113,13 @@ async function retrieveChunks(query: string, history: History, sessionId: string
 
     const result = await searchVector(queryEmbedding, enrichedQuery);
 
+    logger.debug({ sessionId, chunkCount: (result as any).points.length }, "Retrieved chunks from Qdrant");
+
     const reranked = await rerankChunks(query, (result as any).points.map((c: any) => c.payload?.chunk as string));
 
     return reranked.slice(0, 5);
   } catch (err) {
+    logger.error({ err, sessionId }, "Failed to retrieve chunks");
     return [];
   }
 }

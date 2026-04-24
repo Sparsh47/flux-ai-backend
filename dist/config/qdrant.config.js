@@ -1,6 +1,7 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import { env } from "../schema/env.js";
+import { logger } from "./logger.js";
 const qdrantClient = new QdrantClient({
     url: env.QDRANT_HTTP_URL
 });
@@ -10,10 +11,10 @@ export async function setupAndRunQdrant() {
     const collections = await qdrantClient.getCollections();
     const collectionExists = collections.collections.some((collection) => collection.name === collectionName);
     if (collectionExists) {
-        console.log(`⚠️ Collection '${collectionName}' exists.`);
+        logger.info({ collectionName }, "Qdrant collection exists");
     }
     else {
-        console.log(`🚀 Creating collection '${collectionName}' with sparse vector support...`);
+        logger.info({ collectionName }, "Creating Qdrant collection with sparse vector support");
         await qdrantClient.createCollection(collectionName, {
             vectors: {
                 size: vectorDimension,
@@ -25,7 +26,7 @@ export async function setupAndRunQdrant() {
                 }
             }
         });
-        console.log(`✅ Collection '${collectionName}' created successfully.`);
+        logger.info({ collectionName }, "Collection created successfully");
     }
 }
 export async function insertVector(vector, chunk) {

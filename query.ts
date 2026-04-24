@@ -3,6 +3,8 @@ import { BASE_URL, MODEL } from "./constants.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
+import { logger } from "./config/logger.js";
+
 interface Message {
     role: string;
     content: string;
@@ -69,12 +71,14 @@ Rewritten Query:`,
 
     const chain = (prompt as any).pipe(model).pipe(parser);
 
-    const result = await chain.invoke({ input: query, context: contextStr, query: query });
+    const result = await chain.invoke({ input: query, context: contextStr, query: query }) as string;
 
     if (!result) {
-        console.warn("Router could not parse response.");
+        logger.warn({ query }, "Query rewriter returned empty result");
         return null;
     }
 
-    return result as string;
+    logger.debug({ original: query, rewritten: result }, "Query rewritten");
+
+    return result;
 }

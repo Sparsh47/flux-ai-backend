@@ -7,7 +7,9 @@ if (typeof process.loadEnvFile === "function") {
 const envSchema = z.object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     QDRANT_HTTP_URL: z.string(),
-    QDRANT_RPC_URL: z.string()
+    QDRANT_RPC_URL: z.string(),
+    DATABASE_URL: z.string(),
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info')
 });
 const _serverEnv = envSchema.safeParse(process.env);
 if (!_serverEnv.success) {
