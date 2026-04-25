@@ -5,3 +5,4 @@ qdrant_storage
 .DS_Store
 /generated/prisma
 dist/
+redis_data/

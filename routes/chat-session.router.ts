@@ -1,5 +1,4 @@
 import { Router, Request, Response } from "express";
-import { sessions } from "../server.js";
 import { prisma } from "../config/db.js";
 
 export const chatSessionRouter = Router();
@@ -47,12 +46,5 @@ chatSessionRouter.get("/:id", async (req: Request, res: Response) => {
             content: m.content
         })));
     }
-
-    if (sessions[id]) {
-        return res.json(sessions[id].messages.map(m => ({
-            role: m.role || 'user',
-            content: m.content
-        })));
-    }
-    res.status(404).json({ error: "Session not found" });
+    res.status(404).json({ error: "Conversation not found" });
 })

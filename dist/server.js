@@ -10,6 +10,7 @@ import { logger } from "./config/logger.js";
 import cookieParser from "cookie-parser";
 import sessionMiddleware from "./middlewares/session.middleware.js";
 import { chatSessionRouter } from "./routes/chat-session.router.js";
+import { redisPing } from "./config/redis.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -25,6 +26,7 @@ app.use((req, res, next) => {
     next();
 });
 const uploads = multer({ storage });
+await redisPing();
 await setupAndRunQdrant();
 export let sessions = {};
 app.use("/api/sessions", sessionMiddleware, chatSessionRouter);

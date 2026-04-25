@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
-import { sessions } from "../server.js";
 import { runToolAgent } from "../tools.js";
-import { updateMemory } from "../utils.js";
+import { getChatHistory, getChatSummary, updateMemory } from "../utils.js";
 import { PDFParse } from "pdf-parse";
 import fs from "fs"
 import { buildEmbeddings } from "../buildEmbeddings.js";
@@ -20,10 +19,6 @@ chatRouter.post("/", async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    if (!sessions[sessionId]) {
-        sessions[sessionId] = { messages: [], summary: "" };
-    }
-
     if (file) {
         const fileBuffer = fs.readFileSync(file.path);
 
@@ -37,7 +32,15 @@ chatRouter.post("/", async (req: Request, res: Response) => {
         await buildEmbeddings("uploads/file.txt");
     }
 
-    const history = sessions[sessionId];
+    const [conversationSummary, conversationMessages] = await Promise.all([
+        getChatSummary(sessionId),
+        getChatHistory(sessionId)
+    ]);
+
+    const history = {
+        messages: conversationMessages.messages,
+        summary: conversationSummary
+    };
 
     if (!query) {
         res.status(400).json({ error: "Query required" });
