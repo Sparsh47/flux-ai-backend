@@ -5,63 +5,30 @@ import multer from "multer";
 import { fileURLToPath } from "url";
 import { chatRouter } from "./routes/chat.router.js";
 import { setupAndRunQdrant } from "./config/qdrant.config.js";
+import { storage } from "./config/fileStorage.js";
 import { logger } from "./config/logger.js";
+import cookieParser from "cookie-parser";
+import sessionMiddleware from "./middlewares/session.middleware.js";
+import { chatSessionRouter } from "./routes/chat-session.router.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 // Request logging middleware
 app.use((req, res, next) => {
     logger.info({ method: req.method, url: req.url }, "Incoming request");
     next();
 });
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/");
-    },
-    filename: (req, file, cb) => {
-        const sessionId = req.body.sessionId || "default";
-        logger.debug({ sessionId, originalname: file.originalname }, "Uploading file");
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9) + "-" + file.originalname;
-        cb(null, `${sessionId}-${uniqueSuffix}`);
-    }
-});
 const uploads = multer({ storage });
 await setupAndRunQdrant();
-// Serve Vite frontend build
-app.use(express.static(path.join(__dirname, "../frontend/dist")));
 export let sessions = {};
-app.get("/api/sessions", (req, res) => {
-    const sessionData = Object.keys(sessions).map(id => {
-        let baseSum = sessions[id].summary || "New Chat";
-        if (baseSum === "New Chat" && sessions[id].messages.length > 0) {
-            baseSum = sessions[id].messages[0].content.slice(0, 25) + "...";
-        }
-        return {
-            id,
-            summary: baseSum
-        };
-    });
-    res.json(sessionData);
-});
-app.get("/api/sessions/:id", (req, res) => {
-    const id = req.params.id;
-    if (sessions[id]) {
-        res.json(sessions[id].messages.map(m => ({
-            role: m.role || 'user',
-            content: m.content
-        })));
-    }
-    else {
-        res.status(404).json({ error: "Session not found" });
-    }
-});
-app.use("/api/chat", uploads.array("files"), chatRouter);
-// Front-end catch-all
-app.get(/^\/(.*)/, (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
-});
+app.use("/api/sessions", sessionMiddleware, chatSessionRouter);
+app.use("/api/chat", sessionMiddleware, uploads.array("files"), chatRouter);
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     logger.info(`Server is listening on port ${PORT}`);

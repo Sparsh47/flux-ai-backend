@@ -11,6 +11,7 @@ export const chatRouter = Router();
 
 chatRouter.post("/", async (req: Request, res: Response) => {
     const { query, sessionId = "default" } = req.body;
+    const userId = req.sessionId;
     const files = (req.files as Express.Multer.File[]) || [];
     const file = files.length > 0 ? files[0] : null;
 
@@ -53,7 +54,7 @@ chatRouter.post("/", async (req: Request, res: Response) => {
             result += (chunk as string)
         }
 
-        updateMemory(history, query, result, fileNames);
+        updateMemory(history, query, result, fileNames, sessionId, userId);
 
         res.end()
     } catch (error) {

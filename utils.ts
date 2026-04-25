@@ -1,6 +1,7 @@
 import { BASE_URL, MODEL } from "./constants.js";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { prisma } from "./config/db.js";
 
 interface Message {
     role: string;
@@ -49,9 +50,34 @@ Return a concise updated summary.
     return (result.content as string).trim();
 }
 
-export async function updateMemory(session: Session, query: string, answer: string, fileNames: string[] = []) {
+export async function updateMemory(session: Session, query: string, answer: string, fileNames: string[] = [], sessionId: string = "default", userId: string = "default_user") {
     session.messages.push({ role: "user", content: query, attachments: fileNames });
     session.messages.push({ role: "assistant", content: answer });
+
+    await prisma.conversation.upsert({
+        where: {
+            id: sessionId
+        },
+        create: {
+            id: sessionId,
+            title: query.slice(0, 50),
+            userId: userId,
+            messages: {
+                create: [
+                    { role: "USER", content: query },
+                    { role: "ASSISTANT", content: answer }
+                ]
+            }
+        },
+        update: {
+            messages: {
+                create: [
+                    { role: "USER", content: query },
+                    { role: "ASSISTANT", content: answer }
+                ]
+            }
+        }
+    })
 
     if (session.messages.length > 10) {
         const old = session.messages.slice(0, 6);

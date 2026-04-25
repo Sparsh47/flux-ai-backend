@@ -9,6 +9,7 @@ import { logger } from "../config/logger.js";
 export const chatRouter = Router();
 chatRouter.post("/", async (req, res) => {
     const { query, sessionId = "default" } = req.body;
+    const userId = req.sessionId;
     const files = req.files || [];
     const file = files.length > 0 ? files[0] : null;
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -40,7 +41,7 @@ chatRouter.post("/", async (req, res) => {
             res.write(chunk);
             result += chunk;
         }
-        updateMemory(history, query, result, fileNames);
+        updateMemory(history, query, result, fileNames, sessionId, userId);
         res.end();
     }
     catch (error) {

@@ -8,6 +8,7 @@ import { runRag } from "./index.js";
 import { runChat } from "./chat.js";
 import { rewriteQuery } from "./query.js";
 import { logger } from "./config/logger.js";
+import { AIMessageChunk } from "langchain";
 
 const addTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
@@ -270,7 +271,6 @@ ${hasFiles ? `RAG DATA RULE:
   if (fileNames && fileNames.length > 0) {
     finalQuery = `[Attached Files: ${fileNames.join(", ")}]\n${query}`;
   }
-
 
   const stream: any = await agent.streamEvents({
     messages: [
