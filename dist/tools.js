@@ -109,12 +109,14 @@ export async function runTool(query) {
         }
     }
 }
-export async function* runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", fileNames = []) {
-    const hasFiles = fileNames && fileNames.length > 0;
+export async function* runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", files = []) {
+    const hasFiles = files && files.length > 0;
+    const fileNames = files.map(f => f.name);
+    const fileKeys = files.map(f => f.key);
     const ragSearch = tool(async ({ query: q }) => {
         logger.info({ query: q }, "Running ragSearch tool");
         const rewrittenQuery = (await rewriteQuery(q, history)) || q;
-        const result = await runRag(rewrittenQuery, history, sessionId);
+        const result = await runRag(rewrittenQuery, history, sessionId, fileKeys);
         if (!result || result.trim().length < 30) {
             return "NO_DATA_FOUND";
         }

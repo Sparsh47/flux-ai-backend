@@ -6,3 +6,4 @@ qdrant_storage
 /generated/prisma
 dist/
 redis_data/
+s3_data/

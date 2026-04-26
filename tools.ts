@@ -162,9 +162,11 @@ export async function* runToolAgent(
   query: string,
   history: History = { messages: [], summary: "" },
   sessionId: string = "default",
-  fileNames: string[] = []
+  files: {name: string, key: string}[] = []
 ) {
-  const hasFiles = fileNames && fileNames.length > 0;
+  const hasFiles = files && files.length > 0;
+  const fileNames = files.map(f => f.name);
+  const fileKeys = files.map(f => f.key);
 
   const ragSearch = tool(
     async ({ query: q }: { query: string }) => {
@@ -172,7 +174,7 @@ export async function* runToolAgent(
 
       const rewrittenQuery = (await rewriteQuery(q, history)) || q;
 
-      const result = await runRag(rewrittenQuery, history, sessionId);
+      const result = await runRag(rewrittenQuery, history, sessionId, fileKeys);
 
       if (!result || result.trim().length < 30) {
         return "NO_DATA_FOUND";

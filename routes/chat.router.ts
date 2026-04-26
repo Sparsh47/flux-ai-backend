@@ -5,13 +5,24 @@ import { PDFParse } from "pdf-parse";
 import fs from "fs"
 import { buildEmbeddings } from "../buildEmbeddings.js";
 import { logger } from "../config/logger.js";
+import { getFileStream } from "../config/s3.js";
+import { Readable } from "stream";
 
 export const chatRouter = Router();
 
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+    const chunks: any[] = [];
+    for await (const chunk of stream) {
+        chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+}
+
 chatRouter.post("/", async (req: Request, res: Response) => {
-    const { query, sessionId = "default" } = req.body;
+    const { query, sessionId = "default", fileKeys = [] } = req.body;
     const userId = req.sessionId;
-    const files = (req.files as Express.Multer.File[]) || [];
+
+    const files = Array.isArray(fileKeys) ? fileKeys : (fileKeys ? [fileKeys] : []);
     const file = files.length > 0 ? files[0] : null;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -19,17 +30,36 @@ chatRouter.post("/", async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    if (file) {
-        const fileBuffer = fs.readFileSync(file.path);
+    if (files.length > 0) {
+        for (const file of files) {
+            if (!file.key) continue;
+            try {
+                const stream = await getFileStream(file.bucket || "flux-ai-bucket", file.key);
+                const fileBuffer = await streamToBuffer(stream as Readable);
 
-        const parser = new PDFParse({ data: fileBuffer });
-        const data = await parser.getText();
-        const text = data.text;
-        logger.info({ filename: file.originalname }, "Parsed PDF content");
+                const parser = new PDFParse({ data: fileBuffer });
+                const data = await parser.getText();
+                const text = data.text;
+                logger.info({ filename: file.name, key: file.key }, "Parsed PDF content from S3");
 
-        fs.writeFileSync("uploads/file.txt", text, "utf8");
-
-        await buildEmbeddings("uploads/file.txt");
+                if (!fs.existsSync("uploads")) {
+                    fs.mkdirSync("uploads");
+                }
+                
+                const safeKey = file.key.replace(/[\/\\]/g, '_');
+                const localFilePath = `uploads/${safeKey}.txt`;
+                
+                if (!fs.existsSync(localFilePath)) {
+                    fs.writeFileSync(localFilePath, text, "utf8");
+                    logger.debug(`Saved local file: ${localFilePath}`);
+                    await buildEmbeddings(localFilePath, file.key);
+                } else {
+                    logger.debug(`File ${localFilePath} already processed, skipping embedding build.`);
+                }
+            } catch (err) {
+                logger.error({ err, file }, "Failed to process file from S3");
+            }
+        }
     }
 
     const [conversationSummary, conversationMessages] = await Promise.all([
@@ -42,14 +72,16 @@ chatRouter.post("/", async (req: Request, res: Response) => {
         summary: conversationSummary
     };
 
+    console.log("HISTORY: ", history)
+
     if (!query) {
         res.status(400).json({ error: "Query required" });
         return;
     }
 
     try {
-        const fileNames = file ? [file.originalname] : [];
-        const stream = runToolAgent(query, history, sessionId, fileNames);
+        logger.info({ fileCount: files.length }, "Calling runToolAgent");
+        const stream = runToolAgent(query, history, sessionId, files);
         let result = "";
 
         for await (const chunk of stream) {
@@ -57,6 +89,7 @@ chatRouter.post("/", async (req: Request, res: Response) => {
             result += (chunk as string)
         }
 
+        const fileNames = files.map((f: any) => f.name);
         updateMemory(history, query, result, fileNames, sessionId, userId);
 
         res.end()

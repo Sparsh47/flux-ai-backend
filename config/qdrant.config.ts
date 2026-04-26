@@ -36,7 +36,7 @@ export async function setupAndRunQdrant() {
 
 }
 
-export async function insertVector(vector: number[], chunk: string) {
+export async function insertVector(vector: number[], chunk: string, fileKey: string) {
     await qdrantClient.upsert(collectionName, {
         wait: true,
         points: [
@@ -47,34 +47,52 @@ export async function insertVector(vector: number[], chunk: string) {
                     "text_keywords": generateSparseVector(chunk)
                 },
                 payload: {
-                    chunk: chunk
+                    chunk: chunk,
+                    fileKey: fileKey
                 },
             }
         ]
     });
 }
 
-export async function searchVector(vector: number[], query: string) {
+export async function searchVector(vector: number[], query: string, fileKeys: string[] = []) {
 
     const querySparse = generateSparseVector(query);
+    
+    let filter = undefined;
+    if (fileKeys && fileKeys.length > 0) {
+        filter = {
+            must: [
+                {
+                    key: "fileKey",
+                    match: {
+                        any: fileKeys
+                    }
+                }
+            ]
+        };
+    }
 
     const result = await qdrantClient.query(collectionName, {
         prefetch: [
             {
                 query: vector,
                 using: "",
-                limit: 20
+                limit: 20,
+                filter: filter
             },
             {
                 query: querySparse,
                 using: "text_keywords",
-                limit: 20
+                limit: 20,
+                filter: filter
             }
         ],
         query: {
             fusion: "rrf"
         },
         limit: 15,
+        with_payload: true,
     });
 
     return result

@@ -26,9 +26,20 @@ services:
     volumes:
       - ./redis_data:/data
     command: redis-server --appendonly yes
+
+  s3:
+    image: chrislusf/seaweedfs
+    ports:
+      - "8333:8333"
+      - "8888:8888"
+      - "9333:9333"
+    volumes:
+      - ./s3_data:/data
+    command: ["server", "-s3", "-s3.allowedOrigins=*", "-ip.bind=0.0.0.0"]
   
 
 volumes:
   qdrant_storage:
   pgdata:
   redis_data:
+  s3_data:

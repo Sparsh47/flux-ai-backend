@@ -21,9 +21,11 @@ interface History {
   summary: string;
 }
 
-export async function runRag(query: string, history: History, sessionId: string = "default") {
+export async function runRag(query: string, history: History, sessionId: string = "default", fileKeys: string[] = []) {
   try {
-    const bestChunks = await retrieveChunks(query, history, sessionId);
+    const bestChunks = await retrieveChunks(query, history, sessionId, fileKeys);
+
+    console.log("BEST CHUNKS: ", bestChunks);
 
     if (!bestChunks) return "";
 
@@ -62,9 +64,9 @@ export async function runRag(query: string, history: History, sessionId: string 
   }
 }
 
-export async function runRAGStream(query: string, history: History) {
+export async function runRAGStream(query: string, history: History, fileKeys: string[] = []) {
   try {
-    const bestChunks = await retrieveChunks(query, history);
+    const bestChunks = await retrieveChunks(query, history, "default", fileKeys);
 
     if (!bestChunks) return null;
 
@@ -103,7 +105,7 @@ export async function runRAGStream(query: string, history: History) {
   }
 }
 
-async function retrieveChunks(query: string, history: History, sessionId: string = "default") {
+async function retrieveChunks(query: string, history: History, sessionId: string = "default", fileKeys: string[] = []) {
   try {
     const enrichedQuery = history.messages.length || history.summary
       ? history.summary + " " + history.messages.map((m) => m.content).join(" ") + " " + query
@@ -111,11 +113,15 @@ async function retrieveChunks(query: string, history: History, sessionId: string
 
     const queryEmbedding = await getEmbedding(enrichedQuery);
 
-    const result = await searchVector(queryEmbedding, enrichedQuery);
+    const result = await searchVector(queryEmbedding, enrichedQuery, fileKeys);
+
+    console.log("searchResult: ", result);
 
     logger.debug({ sessionId, chunkCount: (result as any).points.length }, "Retrieved chunks from Qdrant");
 
     const reranked = await rerankChunks(query, (result as any).points.map((c: any) => c.payload?.chunk as string));
+
+    console.log("Reranked chunks: ", reranked)
 
     return reranked.slice(0, 5);
   } catch (err) {

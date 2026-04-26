@@ -9,9 +9,10 @@ const model = new ChatOllama({
     model: MODEL,
     temperature: 0,
 });
-export async function runRag(query, history, sessionId = "default") {
+export async function runRag(query, history, sessionId = "default", fileKeys = []) {
     try {
-        const bestChunks = await retrieveChunks(query, history, sessionId);
+        const bestChunks = await retrieveChunks(query, history, sessionId, fileKeys);
+        console.log("BEST CHUNKS: ", bestChunks);
         if (!bestChunks)
             return "";
         const prompt = ChatPromptTemplate.fromMessages([
@@ -44,9 +45,9 @@ export async function runRag(query, history, sessionId = "default") {
         return "";
     }
 }
-export async function runRAGStream(query, history) {
+export async function runRAGStream(query, history, fileKeys = []) {
     try {
-        const bestChunks = await retrieveChunks(query, history);
+        const bestChunks = await retrieveChunks(query, history, "default", fileKeys);
         if (!bestChunks)
             return null;
         const prompt = ChatPromptTemplate.fromMessages([
@@ -79,15 +80,17 @@ export async function runRAGStream(query, history) {
         return null;
     }
 }
-async function retrieveChunks(query, history, sessionId = "default") {
+async function retrieveChunks(query, history, sessionId = "default", fileKeys = []) {
     try {
         const enrichedQuery = history.messages.length || history.summary
             ? history.summary + " " + history.messages.map((m) => m.content).join(" ") + " " + query
             : query;
         const queryEmbedding = await getEmbedding(enrichedQuery);
-        const result = await searchVector(queryEmbedding, enrichedQuery);
+        const result = await searchVector(queryEmbedding, enrichedQuery, fileKeys);
+        console.log("searchResult: ", result);
         logger.debug({ sessionId, chunkCount: result.points.length }, "Retrieved chunks from Qdrant");
         const reranked = await rerankChunks(query, result.points.map((c) => c.payload?.chunk));
+        console.log("Reranked chunks: ", reranked);
         return reranked.slice(0, 5);
     }
     catch (err) {
