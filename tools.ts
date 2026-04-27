@@ -9,6 +9,7 @@ import { runChat } from "./chat.js";
 import { rewriteQuery } from "./query.js";
 import { logger } from "./config/logger.js";
 import { AIMessageChunk } from "langchain";
+import pRetry from "p-retry";
 
 const addTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
@@ -133,14 +134,52 @@ export async function runTool(query: string) {
 
   const agent = (prompt as any).pipe(model);
 
-  const result: any = await agent.invoke({
-    input: query,
-  });
+  const result = await pRetry(
+    async () => {
+      return await agent.invoke({
+        input: query,
+      });
+    },
+    {
+      retries: 3,
+      factor: 2,
+      onFailedAttempt: error => {
+        logger.warn(
+          { attempt: error.attemptNumber, retriesLeft: error.retriesLeft, error: error },
+          "Tool call failed, retrying..."
+        );
+      },
+      shouldRetry: ({ error }: any) => {
+        const retryableCodes = [429, 500, 502, 503, 504]
+        return retryableCodes.includes(error?.status) ||
+          error?.message?.includes("timeout")
+      }
+    }
+  )
 
   for (const call of result.tool_calls) {
     const selectedTool = mathTools.find((tool) => tool.name === call.name);
     if (selectedTool) {
-      const toolResponse = await selectedTool.invoke(call.args);
+      const toolResponse = await pRetry(
+        async () => {
+          return await selectedTool.invoke(call.args);
+        },
+        {
+          retries: 3,
+          factor: 2,
+          onFailedAttempt: error => {
+            logger.warn(
+              { attempt: error.attemptNumber, retriesLeft: error.retriesLeft, error: error },
+              "Tool response generation failed, retrying..."
+            );
+          },
+          shouldRetry: ({ error }: any) => {
+            const retryableCodes = [429, 500, 502, 503, 504]
+            return retryableCodes.includes(error?.status) ||
+              error?.message?.includes("timeout")
+          }
+        }
+      )
 
       return toolResponse;
     }
@@ -280,7 +319,7 @@ ${hasFiles ? `RAG DATA RULE:
       { role: "user", content: finalQuery }
     ]
   },
-    { version: "v2" });
+    { version: "v2", maxRetries: 3, timeout: 30000 });
 
   for await (const event of stream) {
     const eventType = event.event;

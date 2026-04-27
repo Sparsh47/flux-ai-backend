@@ -6,6 +6,7 @@ import { logger } from "./config/logger.js";
 import { normalize } from "./lib/utils.js";
 import { createHash } from "crypto";
 import redis from "./config/redis.js";
+import pRetry from "p-retry";
 export async function rewriteQuery(query, history) {
     if (!/\b(he|she|it|they|this|that|file|document|resume|pdf)\b/i.test(query)) {
         return query;
@@ -67,7 +68,20 @@ Rewritten Query:`,
         ["human", "{input}"],
     ]);
     const chain = prompt.pipe(model).pipe(parser);
-    const result = await chain.invoke({ input: query, context: contextStr, query: query });
+    const result = await pRetry(async () => {
+        return await chain.invoke({ input: query, context: contextStr, query: query });
+    }, {
+        retries: 3,
+        factor: 2,
+        onFailedAttempt: error => {
+            logger.warn({ attempt: error.attemptNumber, retriesLeft: error.retriesLeft, error: error }, "Query rewriter call failed, retrying...");
+        },
+        shouldRetry: ({ error }) => {
+            const retryableCodes = [429, 500, 502, 503, 504];
+            return retryableCodes.includes(error?.status) ||
+                error?.message?.includes("timeout");
+        }
+    });
     if (!result) {
         logger.warn({ query }, "Query rewriter returned empty result");
         return null;

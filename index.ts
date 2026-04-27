@@ -4,6 +4,7 @@ import { getEmbedding } from "./embedding.js";
 import { BASE_URL, MODEL } from "./constants.js";
 import { searchVector } from "./config/qdrant.config.js";
 import { logger } from "./config/logger.js";
+import pRetry from "p-retry";
 
 const model = new ChatOllama({
   baseUrl: BASE_URL,
@@ -53,7 +54,26 @@ export async function runRag(query: string, history: History, sessionId: string 
       inputs.history = [{ role: "system", content: "Previous summary: " + history.summary }, ...inputs.history];
     }
 
-    const res: any = await chain.invoke(inputs);
+    const res = await pRetry(
+      async () => {
+        return await chain.invoke(inputs);
+      },
+      {
+        retries: 3,
+        factor: 2,
+        onFailedAttempt: error => {
+          logger.warn(
+            { attempt: error.attemptNumber, retriesLeft: error.retriesLeft, error: error },
+            "RAG call failed, retrying..."
+          );
+        },
+        shouldRetry: ({ error }: any) => {
+          const retryableCodes = [429, 500, 502, 503, 504]
+          return retryableCodes.includes(error?.status) ||
+            error?.message?.includes("timeout")
+        }
+      }
+    )
 
     return res.content;
   } catch (err) {
@@ -157,11 +177,30 @@ Output:
 
     const agent = (prompt as any).pipe(model);
 
-    const result: any = await agent.invoke({
-      query: query,
-      chunks: modifiedChunks,
-      input: query,
-    });
+    const result = await pRetry(
+      async () => {
+        return await agent.invoke({
+          query: query,
+          chunks: modifiedChunks,
+          input: query,
+        });
+      },
+      {
+        retries: 3,
+        factor: 2,
+        onFailedAttempt: error => {
+          logger.warn(
+            { attempt: error.attemptNumber, retriesLeft: error.retriesLeft, error: error },
+            "Reranker call failed, retrying..."
+          );
+        },
+        shouldRetry: ({ error }: any) => {
+          const retryableCodes = [429, 500, 502, 503, 504]
+          return retryableCodes.includes(error?.status) ||
+            error?.message?.includes("timeout")
+        }
+      }
+    )
 
     let indices: number[];
     try {

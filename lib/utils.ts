@@ -4,6 +4,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { prisma } from "../config/db.js";
 import { logger } from "../config/logger.js";
 import redis from "../config/redis.js";
+import pRetry from "p-retry";
 
 interface Message {
     role: string;
@@ -47,10 +48,29 @@ Return a concise updated summary.
 
     const agent = (prompt as any).pipe(model);
 
-    const result: any = await agent.invoke({
-        previousSummary: previousSummary,
-        text: text,
-    });
+    const result = await pRetry(
+        async () => {
+            return await agent.invoke({
+                previousSummary: previousSummary,
+                text: text,
+            });
+        },
+        {
+            retries: 3,
+            factor: 2,
+            onFailedAttempt: error => {
+                logger.warn(
+                    { attempt: error.attemptNumber, retriesLeft: error.retriesLeft, error: error },
+                    "Summary generation call failed, retrying..."
+                );
+            },
+            shouldRetry: ({ error }: any) => {
+                const retryableCodes = [429, 500, 502, 503, 504]
+                return retryableCodes.includes(error?.status) ||
+                    error?.message?.includes("timeout")
+            }
+        }
+    )
 
     const newSummary = (result.content as string).trim();
 
