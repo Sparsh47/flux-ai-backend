@@ -162,11 +162,11 @@ export async function* runToolAgent(
   query: string,
   history: History = { messages: [], summary: "" },
   sessionId: string = "default",
-  files: {name: string, key: string}[] = []
+  files: any[] = []
 ) {
   const hasFiles = files && files.length > 0;
-  const fileNames = files.map(f => f.name);
-  const fileKeys = files.map(f => f.key);
+  const fileNames = files.map(f => typeof f === 'string' ? f.split("/").pop() : f.name);
+  const fileKeys = files.map(f => typeof f === 'string' ? f : f.key);
 
   const ragSearch = tool(
     async ({ query: q }: { query: string }) => {

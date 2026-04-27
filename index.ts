@@ -25,8 +25,6 @@ export async function runRag(query: string, history: History, sessionId: string 
   try {
     const bestChunks = await retrieveChunks(query, history, sessionId, fileKeys);
 
-    console.log("BEST CHUNKS: ", bestChunks);
-
     if (!bestChunks) return "";
 
     const prompt = ChatPromptTemplate.fromMessages([
@@ -115,13 +113,9 @@ async function retrieveChunks(query: string, history: History, sessionId: string
 
     const result = await searchVector(queryEmbedding, enrichedQuery, fileKeys);
 
-    console.log("searchResult: ", result);
-
     logger.debug({ sessionId, chunkCount: (result as any).points.length }, "Retrieved chunks from Qdrant");
 
     const reranked = await rerankChunks(query, (result as any).points.map((c: any) => c.payload?.chunk as string));
-
-    console.log("Reranked chunks: ", reranked)
 
     return reranked.slice(0, 5);
   } catch (err) {

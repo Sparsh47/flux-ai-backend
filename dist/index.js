@@ -12,7 +12,6 @@ const model = new ChatOllama({
 export async function runRag(query, history, sessionId = "default", fileKeys = []) {
     try {
         const bestChunks = await retrieveChunks(query, history, sessionId, fileKeys);
-        console.log("BEST CHUNKS: ", bestChunks);
         if (!bestChunks)
             return "";
         const prompt = ChatPromptTemplate.fromMessages([
@@ -87,10 +86,8 @@ async function retrieveChunks(query, history, sessionId = "default", fileKeys = 
             : query;
         const queryEmbedding = await getEmbedding(enrichedQuery);
         const result = await searchVector(queryEmbedding, enrichedQuery, fileKeys);
-        console.log("searchResult: ", result);
         logger.debug({ sessionId, chunkCount: result.points.length }, "Retrieved chunks from Qdrant");
         const reranked = await rerankChunks(query, result.points.map((c) => c.payload?.chunk));
-        console.log("Reranked chunks: ", reranked);
         return reranked.slice(0, 5);
     }
     catch (err) {

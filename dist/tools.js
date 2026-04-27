@@ -111,8 +111,8 @@ export async function runTool(query) {
 }
 export async function* runToolAgent(query, history = { messages: [], summary: "" }, sessionId = "default", files = []) {
     const hasFiles = files && files.length > 0;
-    const fileNames = files.map(f => f.name);
-    const fileKeys = files.map(f => f.key);
+    const fileNames = files.map(f => typeof f === 'string' ? f.split("/").pop() : f.name);
+    const fileKeys = files.map(f => typeof f === 'string' ? f : f.key);
     const ragSearch = tool(async ({ query: q }) => {
         logger.info({ query: q }, "Running ragSearch tool");
         const rewrittenQuery = (await rewriteQuery(q, history)) || q;

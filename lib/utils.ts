@@ -1,9 +1,9 @@
-import { BASE_URL, MODEL } from "./constants.js";
+import { BASE_URL, MODEL } from "../constants.js";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { prisma } from "./config/db.js";
-import { logger } from "./config/logger.js";
-import redis from "./config/redis.js";
+import { prisma } from "../config/db.js";
+import { logger } from "../config/logger.js";
+import redis from "../config/redis.js";
 
 interface Message {
     role: string;
@@ -147,5 +147,21 @@ export async function getChatSummary(sessionId: string) {
     } catch (err) {
         logger.error(err, "Error fetching chat summary");
         return "";
+    }
+}
+
+export async function unloadModel(modelName: string) {
+    try {
+        logger.info("Unloading embedding model to free memory...");
+        await fetch(`${BASE_URL}/api/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: modelName,
+                keep_alive: 0
+            })
+        });
+    } catch (e) {
+        logger.error("Failed to unload embedding model");
     }
 }

@@ -4,7 +4,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
 import { logger } from "./config/logger.js";
-import { normalize } from "./utils.js";
+import { normalize } from "./lib/utils.js";
 import { createHash } from "crypto";
 import redis from "./config/redis.js";
 
