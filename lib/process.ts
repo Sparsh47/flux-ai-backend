@@ -8,10 +8,10 @@ import { buildEmbeddings } from "../buildEmbeddings.js";
 
 export const limit = pLimit(3);
 
-export async function processFile(fileKey: string): Promise<void> {
+export async function processFile(fileKey: string): Promise<any> {
     if (!fileKey) {
         logger.error('File key is undefined')
-        return
+        throw new Error('File key is undefined')
     }
 
     const fileStart = performance.now()
@@ -22,24 +22,29 @@ export async function processFile(fileKey: string): Promise<void> {
         const downloadStart = performance.now()
         const stream = await getFileStream(process.env.S3_BUCKET_NAME as string, fileKey)
         const fileBuffer = await streamToBuffer(stream as Readable)
-        logger.info({ fileKey, ms: (performance.now() - downloadStart).toFixed(0) }, 'Downloaded from S3')
+        const downloadTimeMs = performance.now() - downloadStart
 
         const parseStart = performance.now()
         const parser = new PDFParse({ data: fileBuffer })
         const data = await parser.getText()
-        logger.info({ fileKey, ms: (performance.now() - parseStart).toFixed(0) }, 'Parsed PDF')
+        const parseTimeMs = performance.now() - parseStart
 
         if (!fs.existsSync('uploads')) fs.mkdirSync('uploads')
 
         await fs.promises.writeFile(localFilePath, data.text, 'utf8')
-        await buildEmbeddings(localFilePath, fileKey)
+        const embeddingResults = await buildEmbeddings(localFilePath, fileKey)
 
-        logger.info({ fileKey, totalMs: (performance.now() - fileStart).toFixed(0) }, 'File processed')
+        return {
+            fileKey,
+            downloadTimeMs,
+            parseTimeMs,
+            ...embeddingResults,
+            totalMs: performance.now() - fileStart
+        }
 
     } finally {
         try {
             await fs.promises.unlink(localFilePath)
-            logger.info({ fileKey }, 'Temp file deleted')
         } catch (err) {
             logger.error({ err, fileKey }, 'Failed to delete temp file')
         }

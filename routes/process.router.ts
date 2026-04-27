@@ -1,11 +1,13 @@
 import { Router, Request, Response } from "express";
 import { logger } from "../config/logger.js";
 import { limit, processFile } from "../lib/process.js";
+import { fileProcessingQueue } from "../lib/queue.js";
+import { Queue } from "bullmq";
 
 export const processRouter = Router();
 
 processRouter.post("/", async (req: Request, res: Response) => {
-    const { fileKeys = [] } = req.body;
+    const { fileKeys = [], sessionId } = req.body;
 
     if (!fileKeys.length) {
         res.status(400).json({ error: "No file keys provided." })
@@ -29,15 +31,19 @@ processRouter.post("/", async (req: Request, res: Response) => {
 
         const processingStart = performance.now();
 
-        await Promise.all(
-            fileKeys.map((key: string) => limit(async () => {
-                sendEvent("status", {
-                    status: "processing",
-                    message: `Embedding ${key.split("/").pop()}...`
-                });
-                await processFile(key);
-            }))
+        const queueStart = performance.now();
+        const jobs = await Promise.all(
+            fileKeys.map((key: string) => fileProcessingQueue.add("process-file", { fileKey: key, sessionId }))
         );
+        const queueTimeMs = performance.now() - queueStart;
+
+        sendEvent("status", {
+            status: "processing",
+            message: `Queued ${fileKeys.length} file(s) for processing`,
+            queueTimeMs: queueTimeMs.toFixed(0)
+        })
+
+        const jobResults = await pollJobsUntilDone(jobs, sendEvent)
 
         const totalMs = (performance.now() - processingStart).toFixed(0);
         logger.info({ fileCount: fileKeys.length, totalMs: Number(totalMs) }, "All files processed");
@@ -45,16 +51,45 @@ processRouter.post("/", async (req: Request, res: Response) => {
         sendEvent("status", {
             status: "ready",
             message: "All files ready",
-            totalMs
+            totalMs,
+            queueTimeMs: queueTimeMs.toFixed(0),
+            fileResults: jobResults
         });
 
         res.end();
-    } catch (error) {
-        logger.error({ error }, "File processing failed");
+    } catch (error: any) {
+        logger.error({ err: error, message: error.message }, "Failed to queue files")
         sendEvent("error", {
             status: "error",
-            message: "Failed to process one or more files"
-        });
-        res.end();
+            message: error.message || "Failed to process files"
+        })
+        res.end()
     }
 })
+
+async function pollJobsUntilDone(jobs: any[], sendEvent: Function) {
+    const POLL_INTERVAL = 100;
+
+    while (true) {
+        const states = await Promise.all(jobs.map(job => job.getState()));
+
+        const completed = states.filter(state => state === "completed").length;
+        const failed = states.filter(state => state === "failed").length;
+        const total = jobs.length;
+
+        sendEvent("status", {
+            status: "processing",
+            message: `${completed}/${total} files processed`
+        })
+
+        if (completed + failed === total) {
+            if (failed > 0) {
+                throw new Error(`${failed} file(s) failed to process`);
+            }
+            // Return the return values of all jobs
+            return await Promise.all(jobs.map(job => job.returnvalue));
+        }
+
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL))
+    }
+}

@@ -20,12 +20,11 @@ export async function buildEmbeddings(inputFile, fileKey) {
             totalStorageTime += (performance.now() - storeStart);
         }
         const buildEndTime = performance.now();
-        logger.info({
-            inputFile,
-            embeddingTimeSec: (totalEmbeddingTime / 1000).toFixed(2),
-            vectorStorageTimeSec: (totalStorageTime / 1000).toFixed(2),
-            totalTimeSec: ((buildEndTime - buildStartTime) / 1000).toFixed(2)
-        }, "Successfully built and stored embeddings");
+        return {
+            embeddingTimeMs: totalEmbeddingTime,
+            storageTimeMs: totalStorageTime,
+            buildTotalTimeMs: buildEndTime - buildStartTime
+        };
     }
     catch (err) {
         logger.error({ err, inputFile }, "Error building embeddings");
