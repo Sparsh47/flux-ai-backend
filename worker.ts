@@ -7,6 +7,7 @@ import Sentry from "./config/sentry.js";
 interface FileProcessingJob {
     fileKey: string;
     sessionId: string;
+    userId: string;
 }
 
 const worker = new Worker<FileProcessingJob>("file-processing", async (job: Job<FileProcessingJob>) => {
@@ -16,16 +17,18 @@ const worker = new Worker<FileProcessingJob>("file-processing", async (job: Job<
         attributes: {
             jobId: job.id,
             fileKey: job.data.fileKey,
+            userId: job.data.userId,
         }
     })
 
-    const { fileKey } = job.data;
+    const { fileKey, userId, sessionId } = job.data;
+    const activeUserId = userId || sessionId;
 
-    logger.info({ jobId: job.id, fileKey }, "Processing job started");
+    logger.info({ jobId: job.id, fileKey, userId: activeUserId }, "Processing job started");
 
     try {
         await job.updateProgress(10);
-        const results = await processFile(fileKey);
+        const results = await processFile(fileKey, activeUserId);
         await job.updateProgress(100);
 
         logger.info({ jobId: job.id, fileKey }, "Processing job completed successfully");

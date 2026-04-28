@@ -36,7 +36,7 @@ export async function setupAndRunQdrant() {
 
 }
 
-export async function insertVector(vector: number[], chunk: string, fileKey: string) {
+export async function insertVector(vector: number[], chunk: string, fileKey: string, userId: string) {
     await qdrantClient.upsert(collectionName, {
         wait: true,
         points: [
@@ -48,30 +48,39 @@ export async function insertVector(vector: number[], chunk: string, fileKey: str
                 },
                 payload: {
                     chunk: chunk,
-                    fileKey: fileKey
+                    fileKey: fileKey,
+                    userId: userId
                 },
             }
         ]
     });
 }
 
-export async function searchVector(vector: number[], query: string, fileKeys: string[] = []) {
+export async function searchVector(vector: number[], query: string, userId: string, fileKeys: string[] = []) {
 
     const querySparse = generateSparseVector(query);
 
-    let filter = undefined;
+    const mustFilters: any[] = [
+        {
+            key: "userId",
+            match: {
+                value: userId
+            }
+        }
+    ];
+
     if (fileKeys && fileKeys.length > 0) {
-        filter = {
-            must: [
-                {
-                    key: "fileKey",
-                    match: {
-                        any: fileKeys
-                    }
-                }
-            ]
-        };
+        mustFilters.push({
+            key: "fileKey",
+            match: {
+                any: fileKeys
+            }
+        });
     }
+
+    const filter = {
+        must: mustFilters
+    };
 
     const result = await qdrantClient.query(collectionName, {
         prefetch: [

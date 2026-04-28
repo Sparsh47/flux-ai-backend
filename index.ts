@@ -25,8 +25,9 @@ interface History {
 }
 
 export async function runRag(query: string, history: History, sessionId: string = "default", fileKeys: string[] = []) {
+  const userId = sessionId;
   try {
-    const bestChunks = await retrieveChunks(query, history, sessionId, fileKeys);
+    const bestChunks = await retrieveChunks(query, history, userId, fileKeys);
 
     if (!bestChunks) return "";
 
@@ -95,9 +96,9 @@ export async function runRag(query: string, history: History, sessionId: string 
   }
 }
 
-export async function runRAGStream(query: string, history: History, fileKeys: string[] = []) {
+export async function runRAGStream(query: string, history: History, userId: string = "default", fileKeys: string[] = []) {
   try {
-    const bestChunks = await retrieveChunks(query, history, "default", fileKeys);
+    const bestChunks = await retrieveChunks(query, history, userId, fileKeys);
 
     if (!bestChunks) return null;
 
@@ -136,7 +137,7 @@ export async function runRAGStream(query: string, history: History, fileKeys: st
   }
 }
 
-async function retrieveChunks(query: string, history: History, sessionId: string = "default", fileKeys: string[] = []) {
+async function retrieveChunks(query: string, history: History, userId: string = "default", fileKeys: string[] = []) {
   try {
     const enrichedQuery = history.messages.length || history.summary
       ? history.summary + " " + history.messages.map((m) => m.content).join(" ") + " " + query
@@ -144,15 +145,15 @@ async function retrieveChunks(query: string, history: History, sessionId: string
 
     const queryEmbedding = await getEmbedding(enrichedQuery);
 
-    const result = await searchVector(queryEmbedding, enrichedQuery, fileKeys);
+    const result = await searchVector(queryEmbedding, enrichedQuery, userId, fileKeys);
 
-    logger.debug({ sessionId, chunkCount: (result as any).points.length }, "Retrieved chunks from Qdrant");
+    logger.debug({ userId, chunkCount: (result as any).points.length }, "Retrieved chunks from Qdrant");
 
     const reranked = await rerankChunks(query, (result as any).points.map((c: any) => c.payload?.chunk as string));
 
     return reranked.slice(0, 5);
   } catch (err) {
-    logger.error({ err, sessionId }, "Failed to retrieve chunks");
+    logger.error({ err, userId }, "Failed to retrieve chunks");
     return [];
   }
 }

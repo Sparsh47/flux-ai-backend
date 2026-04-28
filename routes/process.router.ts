@@ -33,7 +33,7 @@ processRouter.post("/", async (req: Request, res: Response) => {
 
         const queueStart = performance.now();
         const jobs = await Promise.all(
-            fileKeys.map((key: string) => fileProcessingQueue.add("process-file", { fileKey: key, sessionId }))
+            fileKeys.map((key: string) => fileProcessingQueue.add("process-file", { fileKey: key, sessionId, userId: sessionId }))
         );
         const queueTimeMs = performance.now() - queueStart;
 

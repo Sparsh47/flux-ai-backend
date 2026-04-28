@@ -9,7 +9,7 @@ import { env } from "../schema/env.js";
 
 export const limit = pLimit(3);
 
-export async function processFile(fileKey: string): Promise<any> {
+export async function processFile(fileKey: string, userId: string): Promise<any> {
     if (!fileKey) {
         logger.error('File key is undefined')
         throw new Error('File key is undefined')
@@ -33,7 +33,7 @@ export async function processFile(fileKey: string): Promise<any> {
         if (!fs.existsSync('uploads')) fs.mkdirSync('uploads')
 
         await fs.promises.writeFile(localFilePath, data.text, 'utf8')
-        const embeddingResults = await buildEmbeddings(localFilePath, fileKey)
+        const embeddingResults = await buildEmbeddings(localFilePath, fileKey, userId)
 
         return {
             fileKey,

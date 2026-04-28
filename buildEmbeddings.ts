@@ -3,8 +3,8 @@ import { getEmbedding } from "./embedding.js";
 import { insertVector } from "./config/qdrant.config.js";
 import { logger } from "./config/logger.js";
 
-export async function buildEmbeddings(inputFile: string, fileKey: string) {
-  logger.info({ inputFile, fileKey }, "Building embeddings for file");
+export async function buildEmbeddings(inputFile: string, fileKey: string, userId: string) {
+  logger.info({ inputFile, fileKey, userId }, "Building embeddings for file");
   try {
     const fileContent: string = fs.readFileSync(inputFile, "utf8");
     const chunks = fileContent.split("\n").filter((chunk: string) => chunk.trim() !== "");
@@ -21,7 +21,7 @@ export async function buildEmbeddings(inputFile: string, fileKey: string) {
       totalEmbeddingTime += (performance.now() - embStart);
 
       const storeStart = performance.now();
-      await insertVector(embedding, chunk, fileKey);
+      await insertVector(embedding, chunk, fileKey, userId);
       totalStorageTime += (performance.now() - storeStart);
     }
     const buildEndTime = performance.now();
