@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { fileURLToPath } from "url";
 import { chatRouter } from "./routes/chat.router.js";
-import { setupAndRunQdrant } from "./config/qdrant.config.js";
+import { qdrantClient, setupAndRunQdrant } from "./config/qdrant.config.js";
 import { logger } from "./config/logger.js";
 import cookieParser from "cookie-parser";
 import sessionMiddleware from "./middlewares/session.middleware.js";
@@ -11,8 +11,7 @@ import { uploadRouter } from "./routes/upload.router.js";
 import { redisPing } from "./config/redis.js";
 import { processRouter } from "./routes/process.router.js";
 import { chatLimiter, processLimiter } from "./config/rateLimiter.js";
-
-const __filename = fileURLToPath(import.meta.url);
+import { prisma } from "./config/db.js";
 
 const app = express();
 
@@ -31,6 +30,23 @@ app.use((req, res, next) => {
 
 await redisPing();
 await setupAndRunQdrant();
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ message: "OK" })
+});
+
+app.get("/api/ready", async (req, res) => {
+  try {
+    await Promise.all([
+      prisma.$queryRaw`SELECT 1`,
+      redisPing(),
+      qdrantClient.getCollections(),
+    ])
+    res.status(200).json({ status: "ready" })
+  } catch (error) {
+    res.status(503).json({ status: "unavailable", error })
+  }
+})
 
 app.use("/api/sessions", sessionMiddleware, chatSessionRouter);
 app.use("/api/process", processLimiter, sessionMiddleware, processRouter);

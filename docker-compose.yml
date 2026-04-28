@@ -11,7 +11,7 @@ services:
       - NODE_ENV=${NODE_ENV}
       - LOG_PRETTY=${LOG_PRETTY}
       - REDIS_HOST=${REDIS_HOST}
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_BACKEND_URL}
       - QDRANT_HTTP_URL=${QDRANT_HTTP_URL}
       - QDRANT_RPC_URL=${QDRANT_RPC_URL}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
@@ -20,6 +20,12 @@ services:
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     
   flux-worker:
     build: .
@@ -30,7 +36,7 @@ services:
       - NODE_ENV=${NODE_ENV}
       - LOG_PRETTY=${LOG_PRETTY}
       - REDIS_HOST=${REDIS_HOST}
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_WORKER_URL}
       - QDRANT_HTTP_URL=${QDRANT_HTTP_URL}
       - QDRANT_RPC_URL=${QDRANT_RPC_URL}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}

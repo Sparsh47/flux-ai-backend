@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { env } from "../schema/env.js";
 import { logger } from "./logger.js";
 
-const qdrantClient = new QdrantClient({
+export const qdrantClient = new QdrantClient({
     url: env.QDRANT_HTTP_URL
 })
 
@@ -58,7 +58,7 @@ export async function insertVector(vector: number[], chunk: string, fileKey: str
 export async function searchVector(vector: number[], query: string, fileKeys: string[] = []) {
 
     const querySparse = generateSparseVector(query);
-    
+
     let filter = undefined;
     if (fileKeys && fileKeys.length > 0) {
         filter = {
