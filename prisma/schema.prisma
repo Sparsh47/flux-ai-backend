@@ -54,3 +54,15 @@ enum Tool {
   SUMMARY
   FALLBACK
 }
+
+model RagTrace {
+  id String @id @default(uuid()) @unique
+  sessionId String
+  originalQuery String
+  rewrittenQuery String?
+  cacheHit Boolean
+  similarityScores Json
+  chunksReturned Int
+  toolSelected String
+  createdAt DateTime @default(now())
+}

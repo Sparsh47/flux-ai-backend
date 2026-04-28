@@ -224,9 +224,10 @@ export async function* runToolAgent(
     async ({ query: q }: { query: string }) => {
       logger.info({ query: q }, "Running ragSearch tool");
 
-      const rewrittenQuery = (await rewriteQuery(q, history)) || q;
+      const rewriteResult = await rewriteQuery(q, history);
+      const rewrittenQuery = rewriteResult.query;
 
-      const result = await runRag(rewrittenQuery, history, sessionId, fileKeys);
+      const result = await runRag(rewrittenQuery, history, sessionId, fileKeys, rewriteResult);
 
       if (!result || result.trim().length < 30) {
         return "NO_DATA_FOUND";

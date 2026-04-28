@@ -22,10 +22,17 @@ interface History {
     summary: string;
 }
 
-export async function rewriteQuery(query: string, history: History): Promise<string | null> {
+export interface RewriteResult {
+    query: string;
+    originalQuery: string;
+    rewrittenQuery: string | null;
+    cacheHit: boolean;
+}
+
+export async function rewriteQuery(query: string, history: History): Promise<RewriteResult> {
 
     if (!/\b(he|she|it|they|this|that|file|document|resume|pdf)\b/i.test(query)) {
-        return query;
+        return { query, originalQuery: query, rewrittenQuery: null, cacheHit: false };
     }
 
     const model = new ChatOllama({
@@ -33,8 +40,6 @@ export async function rewriteQuery(query: string, history: History): Promise<str
         model: MODEL,
         temperature: 0,
     } as any);
-
-    const parser = new StringOutputParser();
 
     const contextStr = history.messages
         .slice(-4)
@@ -61,7 +66,7 @@ export async function rewriteQuery(query: string, history: History): Promise<str
 
     if (cached) {
         logger.debug({ cacheKey }, "Cache hit");
-        return cached;
+        return { query: cached, originalQuery: query, rewrittenQuery: cached, cacheHit: true };
     }
 
     const prompt = ChatPromptTemplate.fromMessages([
@@ -130,12 +135,12 @@ Rewritten Query:`,
     
     if (!rewrittenContent) {
         logger.warn({ query }, "Query rewriter returned empty result");
-        return null;
+        return { query, originalQuery: query, rewrittenQuery: null, cacheHit: false };
     }
 
     logger.debug({ original: query, rewritten: rewrittenContent }, "Query rewritten");
 
     await redis.set(cacheKey, rewrittenContent, "EX", 3600);
 
-    return rewrittenContent;
+    return { query: rewrittenContent, originalQuery: query, rewrittenQuery: rewrittenContent, cacheHit: false };
 }

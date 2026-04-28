@@ -7,6 +7,8 @@ import { logger } from "./config/logger.js";
 import pRetry from "p-retry";
 import { trackLLMCost } from "./lib/cost.js";
 import { Tool } from "@prisma/client";
+import { RewriteResult } from "./query.js";
+import { saveRAGTrace } from "./lib/trace.js";
 
 const model = new ChatOllama({
   baseUrl: BASE_URL,
@@ -24,10 +26,16 @@ interface History {
   summary: string;
 }
 
-export async function runRag(query: string, history: History, sessionId: string = "default", fileKeys: string[] = []) {
+export async function runRag(
+  query: string, 
+  history: History, 
+  sessionId: string = "default", 
+  fileKeys: string[] = [],
+  rewriteInfo?: RewriteResult
+) {
   const userId = sessionId;
   try {
-    const bestChunks = await retrieveChunks(query, history, userId, fileKeys);
+    const { chunks: bestChunks, scores, count } = await retrieveChunks(query, history, userId, fileKeys);
 
     if (!bestChunks) return "";
 
@@ -89,6 +97,19 @@ export async function runRag(query: string, history: History, sessionId: string 
         latencyMs
     );
 
+    // Save trace
+    if (rewriteInfo) {
+        await saveRAGTrace({
+            sessionId,
+            originalQuery: rewriteInfo.originalQuery,
+            rewrittenQuery: rewriteInfo.rewrittenQuery,
+            cacheHit: rewriteInfo.cacheHit,
+            similarityScores: scores,
+            chunksReturned: count,
+            toolSelected: "rag"
+        });
+    }
+
     return res.content;
   } catch (err) {
     console.error("Error encountered: ", err);
@@ -98,7 +119,7 @@ export async function runRag(query: string, history: History, sessionId: string 
 
 export async function runRAGStream(query: string, history: History, userId: string = "default", fileKeys: string[] = []) {
   try {
-    const bestChunks = await retrieveChunks(query, history, userId, fileKeys);
+    const { chunks: bestChunks } = await retrieveChunks(query, history, userId, fileKeys);
 
     if (!bestChunks) return null;
 
@@ -145,16 +166,19 @@ async function retrieveChunks(query: string, history: History, userId: string = 
 
     const queryEmbedding = await getEmbedding(enrichedQuery);
 
-    const result = await searchVector(queryEmbedding, enrichedQuery, userId, fileKeys);
+    const result: any = await searchVector(queryEmbedding, enrichedQuery, userId, fileKeys);
 
-    logger.debug({ userId, chunkCount: (result as any).points.length }, "Retrieved chunks from Qdrant");
+    logger.debug({ userId, chunkCount: result.points.length }, "Retrieved chunks from Qdrant");
 
-    const reranked = await rerankChunks(query, (result as any).points.map((c: any) => c.payload?.chunk as string));
+    const scores = result.points.map((p: any) => p.score);
+    const count = result.points.length;
 
-    return reranked.slice(0, 5);
+    const reranked = await rerankChunks(query, result.points.map((c: any) => c.payload?.chunk as string));
+
+    return { chunks: reranked.slice(0, 5), scores, count };
   } catch (err) {
     logger.error({ err, userId }, "Failed to retrieve chunks");
-    return [];
+    return { chunks: [], scores: [], count: 0 };
   }
 }
 
