@@ -2,8 +2,8 @@ import { Redis } from "ioredis";
 import { logger } from "./logger.js";
 
 const redis = new Redis({
-    host: "localhost",
-    port: 6379,
+    host: process.env.REDIS_HOST || "localhost",
+    port: parseInt(process.env.REDIS_PORT || "6379"),
     retryStrategy: (times) => {
         const delay = Math.min(times * 50, 2000);
         return delay;

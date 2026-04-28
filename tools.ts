@@ -262,6 +262,7 @@ Use for:
     baseUrl: BASE_URL,
     model: MODEL,
     temperature: 0,
+    maxRetries: 3,
   } as any);
 
   const systemPrompt = `You are an intelligent assistant.
@@ -319,7 +320,7 @@ ${hasFiles ? `RAG DATA RULE:
       { role: "user", content: finalQuery }
     ]
   },
-    { version: "v2", maxRetries: 3, timeout: 30000 });
+    { version: "v2" });
 
   for await (const event of stream) {
     const eventType = event.event;

@@ -182,6 +182,7 @@ Use for:
         baseUrl: BASE_URL,
         model: MODEL,
         temperature: 0,
+        maxRetries: 3,
     });
     const systemPrompt = `You are an intelligent assistant.
 
@@ -232,7 +233,7 @@ ${hasFiles ? `RAG DATA RULE:
             ...formattedMessages,
             { role: "user", content: finalQuery }
         ]
-    }, { version: "v2", maxRetries: 3, timeout: 30000 });
+    }, { version: "v2" });
     for await (const event of stream) {
         const eventType = event.event;
         if (eventType === "on_chat_model_stream") {

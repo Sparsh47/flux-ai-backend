@@ -1,4 +1,23 @@
 services:
+
+  flux-backend:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - LOG_PRETTY=true
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - QDRANT_HTTP_URL=http://vector-db:6333
+      - QDRANT_RPC_URL=http://vector-db:6334
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - S3_ENDPOINT=http://s3:8333
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   vector-db:
     image: qdrant/qdrant
     ports:

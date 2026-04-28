@@ -1,8 +1,8 @@
 import z from "zod";
 import process from "node:process";
+import fs from "node:fs";
 
-// Load .env file
-if (typeof process.loadEnvFile === "function") {
+if (typeof process.loadEnvFile === "function" && fs.existsSync(".env")) {
     process.loadEnvFile();
 }
 
@@ -11,7 +11,8 @@ const envSchema = z.object({
     QDRANT_HTTP_URL: z.string(),
     QDRANT_RPC_URL: z.string(),
     DATABASE_URL: z.string(),
-    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info')
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+    LOG_PRETTY: z.preprocess((v) => v === 'true', z.boolean()).default(false),
 });
 
 const _serverEnv = envSchema.safeParse(process.env)
