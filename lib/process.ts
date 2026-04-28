@@ -5,6 +5,7 @@ import { Readable } from "stream";
 import { getFileStream } from "../config/s3.js";
 import { PDFParse } from "pdf-parse";
 import { buildEmbeddings } from "../buildEmbeddings.js";
+import { env } from "../schema/env.js";
 
 export const limit = pLimit(3);
 
@@ -20,7 +21,7 @@ export async function processFile(fileKey: string): Promise<any> {
 
     try {
         const downloadStart = performance.now()
-        const stream = await getFileStream(process.env.S3_BUCKET_NAME as string, fileKey)
+        const stream = await getFileStream(env.S3_BUCKET_NAME, fileKey)
         const fileBuffer = await streamToBuffer(stream as Readable)
         const downloadTimeMs = performance.now() - downloadStart
 
@@ -44,7 +45,9 @@ export async function processFile(fileKey: string): Promise<any> {
 
     } finally {
         try {
-            await fs.promises.unlink(localFilePath)
+            if (fs.existsSync(localFilePath)) {
+                await fs.promises.unlink(localFilePath)
+            }
         } catch (err) {
             logger.error({ err, fileKey }, 'Failed to delete temp file')
         }

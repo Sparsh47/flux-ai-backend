@@ -1,11 +1,22 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
-const isDev = process.env.NODE_ENV !== "production";
+import { env } from "../schema/env.js";
 
 const s3Client = new S3Client({
     region: "us-east-1",
     endpoint: process.env.S3_ENDPOINT || "http://localhost:8333",
+    credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY || "any",
+        secretAccessKey: process.env.S3_SECRET_KEY || "any",
+    },
+    forcePathStyle: true,
+    requestChecksumCalculation: "WHEN_REQUIRED"
+});
+
+// Separate client for presigned URLs to avoid signature mismatch
+const presignedS3Client = new S3Client({
+    region: "us-east-1",
+    endpoint: env.S3_PUBLIC_URL || "http://localhost:8333",
     credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY || "any",
         secretAccessKey: process.env.S3_SECRET_KEY || "any",
@@ -20,7 +31,7 @@ export const getPresignedUploadUrl = async (bucket: string, key: string) => {
         Key: key
     });
 
-    return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    return await getSignedUrl(presignedS3Client, command, { expiresIn: 3600 });
 }
 
 export const getFileStream = async (bucket: string, key: string) => {
