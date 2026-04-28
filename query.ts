@@ -8,6 +8,8 @@ import { normalize } from "./lib/utils.js";
 import { createHash } from "crypto";
 import redis from "./config/redis.js";
 import pRetry from "p-retry";
+import { trackLLMCost } from "./lib/cost.js";
+import { Tool } from "@prisma/client";
 
 interface Message {
     role: string;
@@ -90,9 +92,10 @@ Rewritten Query:`,
         ["human", "{input}"],
     ]);
 
-    const chain = (prompt as any).pipe(model).pipe(parser);
+    const chain = (prompt as any).pipe(model);
 
-    const result = await pRetry(
+    const llmStart = performance.now();
+    const result: any = await pRetry(
         async () => {
             return await chain.invoke({ input: query, context: contextStr, query: query });
         },
@@ -112,15 +115,27 @@ Rewritten Query:`,
             }
         }
     )
+    const latencyMs = performance.now() - llmStart;
 
-    if (!result) {
+    // Track cost
+    await trackLLMCost(
+        "system",
+        Tool.REWRITE,
+        MODEL,
+        result,
+        latencyMs
+    );
+
+    const rewrittenContent = result.content;
+    
+    if (!rewrittenContent) {
         logger.warn({ query }, "Query rewriter returned empty result");
         return null;
     }
 
-    logger.debug({ original: query, rewritten: result }, "Query rewritten");
+    logger.debug({ original: query, rewritten: rewrittenContent }, "Query rewritten");
 
-    await redis.set(cacheKey, result, "EX", 3600);
+    await redis.set(cacheKey, rewrittenContent, "EX", 3600);
 
-    return result;
+    return rewrittenContent;
 }

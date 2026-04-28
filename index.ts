@@ -5,6 +5,8 @@ import { BASE_URL, MODEL } from "./constants.js";
 import { searchVector } from "./config/qdrant.config.js";
 import { logger } from "./config/logger.js";
 import pRetry from "p-retry";
+import { trackLLMCost } from "./lib/cost.js";
+import { Tool } from "@prisma/client";
 
 const model = new ChatOllama({
   baseUrl: BASE_URL,
@@ -54,7 +56,8 @@ export async function runRag(query: string, history: History, sessionId: string 
       inputs.history = [{ role: "system", content: "Previous summary: " + history.summary }, ...inputs.history];
     }
 
-    const res = await pRetry(
+    const llmStart = performance.now();
+    const res: any = await pRetry(
       async () => {
         return await chain.invoke(inputs);
       },
@@ -74,6 +77,16 @@ export async function runRag(query: string, history: History, sessionId: string 
         }
       }
     )
+    const latencyMs = performance.now() - llmStart;
+
+    // Track cost
+    await trackLLMCost(
+        sessionId,
+        Tool.AGENT,
+        MODEL,
+        res,
+        latencyMs
+    );
 
     return res.content;
   } catch (err) {
@@ -177,7 +190,8 @@ Output:
 
     const agent = (prompt as any).pipe(model);
 
-    const result = await pRetry(
+    const llmStart = performance.now();
+    const result: any = await pRetry(
       async () => {
         return await agent.invoke({
           query: query,
@@ -201,6 +215,16 @@ Output:
         }
       }
     )
+    const latencyMs = performance.now() - llmStart;
+
+    // Track cost
+    await trackLLMCost(
+        "system",
+        Tool.AGENT,
+        MODEL,
+        result,
+        latencyMs
+    );
 
     let indices: number[];
     try {

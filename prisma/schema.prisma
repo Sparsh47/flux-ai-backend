@@ -31,7 +31,26 @@ model Conversation {
   messages Message[]
 }
 
+model LLMCost {
+  id String @id @default(uuid()) @unique
+  sessionId String
+  tool Tool
+  model String
+  promptTokens Int
+  completionTokens Int
+  totalTokens Int
+  latencyMs Int
+  createdAt DateTime @default(now())
+}
+
 enum Role {
   USER
   ASSISTANT
+}
+
+enum Tool {
+  REWRITE
+  AGENT
+  SUMMARY
+  FALLBACK
 }

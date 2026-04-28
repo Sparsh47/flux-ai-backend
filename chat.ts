@@ -3,6 +3,8 @@ import { BASE_URL, MODEL } from "./constants.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import pRetry from "p-retry";
 import { logger } from "./config/logger.js";
+import { trackLLMCost } from "./lib/cost.js";
+import { Tool } from "@prisma/client";
 
 export async function runChat(query: string): Promise<string> {
   const model = new ChatOllama({
@@ -24,7 +26,8 @@ ONLY use a code block if the user explicitly asks a code-related question.`,
 
   const chain = (prompt as any).pipe(model);
 
-  const response = await pRetry(
+  const llmStart = performance.now();
+  const response: any = await pRetry(
     async () => {
       return await chain.invoke({
         input: query
@@ -47,6 +50,16 @@ ONLY use a code block if the user explicitly asks a code-related question.`,
       }
     }
   )
+  const latencyMs = performance.now() - llmStart;
+
+  // Track cost
+  await trackLLMCost(
+    "system", // Use system or pass sessionId if available
+    Tool.FALLBACK,
+    MODEL,
+    response,
+    latencyMs
+  );
 
   return response.content as string;
 }

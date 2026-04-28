@@ -5,6 +5,8 @@ import { prisma } from "../config/db.js";
 import { logger } from "../config/logger.js";
 import redis from "../config/redis.js";
 import pRetry from "p-retry";
+import { trackLLMCost } from "./cost.js";
+import { Tool } from "@prisma/client";
 
 interface Message {
     role: string;
@@ -48,7 +50,8 @@ Return a concise updated summary.
 
     const agent = (prompt as any).pipe(model);
 
-    const result = await pRetry(
+    const llmStart = performance.now();
+    const result: any = await pRetry(
         async () => {
             return await agent.invoke({
                 previousSummary: previousSummary,
@@ -71,6 +74,16 @@ Return a concise updated summary.
             }
         }
     )
+    const latencyMs = performance.now() - llmStart;
+
+    // Track cost
+    await trackLLMCost(
+        sessionId,
+        Tool.SUMMARY,
+        MODEL,
+        result,
+        latencyMs
+    );
 
     const newSummary = (result.content as string).trim();
 

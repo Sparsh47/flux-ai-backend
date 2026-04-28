@@ -10,6 +10,8 @@ import { rewriteQuery } from "./query.js";
 import { logger } from "./config/logger.js";
 import { AIMessageChunk } from "langchain";
 import pRetry from "p-retry";
+import { trackLLMCost } from "./lib/cost.js";
+import { Tool } from "@prisma/client";
 
 const addTool = tool(
   async ({ a, b }: { a: number; b: number }) => {
@@ -134,7 +136,8 @@ export async function runTool(query: string) {
 
   const agent = (prompt as any).pipe(model);
 
-  const result = await pRetry(
+  const llmStart = performance.now();
+  const result: any = await pRetry(
     async () => {
       return await agent.invoke({
         input: query,
@@ -156,6 +159,16 @@ export async function runTool(query: string) {
       }
     }
   )
+  const latencyMs = performance.now() - llmStart;
+
+  // Track cost
+  await trackLLMCost(
+    "system",
+    Tool.AGENT,
+    MODEL,
+    result,
+    latencyMs
+  );
 
   for (const call of result.tool_calls) {
     const selectedTool = mathTools.find((tool) => tool.name === call.name);
@@ -322,6 +335,7 @@ ${hasFiles ? `RAG DATA RULE:
   },
     { version: "v2" });
 
+  const agentStart = performance.now();
   for await (const event of stream) {
     const eventType = event.event;
 
@@ -331,8 +345,15 @@ ${hasFiles ? `RAG DATA RULE:
       if (chunk.content) {
         yield chunk.content
       }
+
+      // Capture usage metadata from streaming events
+      if (chunk.usage_metadata) {
+        const latencyMs = performance.now() - agentStart;
+        await trackLLMCost(sessionId, Tool.AGENT, MODEL, chunk, latencyMs);
+      }
     }
   }
 
-  logger.info({ query, sessionId }, "Agent stream complete");
+  const totalTime = performance.now() - agentStart;
+  logger.info({ query, sessionId, totalTime: totalTime.toFixed(0) }, "Agent stream complete");
 }

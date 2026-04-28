@@ -15,6 +15,7 @@ const envSchema = z.object({
     LOG_PRETTY: z.preprocess((v) => v === 'true', z.boolean()).default(false),
     S3_PUBLIC_URL: z.string().optional(),
     S3_BUCKET_NAME: z.string().default("flux-ai-bucket"),
+    SENTRY_DSN: z.string(),
 });
 
 const _serverEnv = envSchema.safeParse(process.env)

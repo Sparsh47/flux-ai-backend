@@ -18,6 +18,7 @@ services:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - S3_PUBLIC_URL=${S3_PUBLIC_URL}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - SENTRY_DSN=${SENTRY_DSN}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -43,6 +44,7 @@ services:
       - S3_ENDPOINT=${S3_ENDPOINT}
       - S3_PUBLIC_URL=${S3_PUBLIC_URL}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - SENTRY_DSN=${SENTRY_DSN}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

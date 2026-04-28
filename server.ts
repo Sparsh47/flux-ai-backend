@@ -1,6 +1,6 @@
+import Sentry from "./config/sentry.js";
 import express from "express";
 import cors from "cors";
-import { fileURLToPath } from "url";
 import { chatRouter } from "./routes/chat.router.js";
 import { qdrantClient, setupAndRunQdrant } from "./config/qdrant.config.js";
 import { logger } from "./config/logger.js";
@@ -52,6 +52,8 @@ app.use("/api/sessions", sessionMiddleware, chatSessionRouter);
 app.use("/api/process", processLimiter, sessionMiddleware, processRouter);
 app.use("/api/upload", sessionMiddleware, uploadRouter);
 app.use("/api/chat", chatLimiter, sessionMiddleware, chatRouter);
+
+Sentry.setupExpressErrorHandler(app);
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
