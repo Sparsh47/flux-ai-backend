@@ -11,16 +11,28 @@ export async function trackLLMCost(
     latencyMs: number
 ) {
     try {
-        // Extract usage metadata from LangChain response
+        // Extract usage metadata — LangChain's usage_metadata uses input_tokens/output_tokens
+        // (Ollama, Google, Anthropic), while OpenAI uses prompt_tokens/completion_tokens.
+        // Support both conventions.
         const usage = response.usage_metadata || response.response_metadata?.usage || {};
-        
-        const promptTokens = usage.prompt_tokens || 0;
-        const completionTokens = usage.completion_tokens || 0;
-        const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
 
-        // If we couldn't get tokens from metadata, try fallback to estimation or log warning
+        const promptTokens =
+            usage.input_tokens ??
+            usage.prompt_tokens ??
+            usage.inputTokens ??
+            0;
+        const completionTokens =
+            usage.output_tokens ??
+            usage.completion_tokens ??
+            usage.outputTokens ??
+            0;
+        const totalTokens =
+            usage.total_tokens ??
+            usage.totalTokens ??
+            (promptTokens + completionTokens);
+
         if (totalTokens === 0) {
-            logger.debug({ tool, sessionId }, "No token usage metadata found in LLM response");
+            logger.debug({ tool, sessionId, usageKeys: Object.keys(usage) }, "No token usage metadata found in LLM response");
         }
 
         await prisma.lLMCost.create({

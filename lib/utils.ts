@@ -26,7 +26,7 @@ export async function summarizeHistory(oldMessages: Message[], sessionId: string
     const text = oldMessages.map(m => `${m.role}: ${m.content}`).join("\n");
 
     const model = new ChatOllama({
-        baseUrl: BASE_URL,
+        baseURL: BASE_URL,
         model: MODEL,
         temperature: 0,
     } as any);

@@ -1,7 +1,6 @@
 import { ChatOllama } from "@langchain/ollama";
 import { BASE_URL, MODEL } from "./constants.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { StringOutputParser } from "@langchain/core/output_parsers";
 
 import { logger } from "./config/logger.js";
 import { normalize } from "./lib/utils.js";
@@ -29,19 +28,32 @@ export interface RewriteResult {
     cacheHit: boolean;
 }
 
-export async function rewriteQuery(query: string, history: History): Promise<RewriteResult> {
+export async function rewriteQuery(query: string, history: History, fileNames: string[] = []): Promise<RewriteResult> {
 
-    if (!/\b(he|she|it|they|this|that|file|document|resume|pdf)\b/i.test(query)) {
+    // Trigger rewrite if the query is vague, short, or references a document/pronoun
+    const needsRewrite = (
+        query.trim().split(/\s+/).length <= 3 ||
+        /\b(he|she|it|they|this|that|its|their|him|her|them)\b/i.test(query) ||
+        /\b(file|document|resume|pdf|attachment|report|the doc|the file)\b/i.test(query) ||
+        /^(summarize|explain|describe|analyze|review|tell me|what is|what does|give me|show me|what's)/i.test(query.trim())
+    );
+
+    if (!needsRewrite) {
         return { query, originalQuery: query, rewrittenQuery: null, cacheHit: false };
     }
 
     const model = new ChatOllama({
-        baseUrl: BASE_URL,
+        baseURL: BASE_URL,
         model: MODEL,
         temperature: 0,
     } as any);
 
-    const contextStr = history.messages
+    // Prepend current attached files context so the rewriter knows what documents are in scope
+    const attachedFilesContext = fileNames.length > 0
+        ? `[Currently attached files: ${fileNames.join(", ")}]\n`
+        : "";
+
+    const contextStr = attachedFilesContext + history.messages
         .slice(-4)
         .map((m) => {
             let c = `${m.role}: ${m.content}`;
@@ -132,7 +144,7 @@ Rewritten Query:`,
     );
 
     const rewrittenContent = result.content;
-    
+
     if (!rewrittenContent) {
         logger.warn({ query }, "Query rewriter returned empty result");
         return { query, originalQuery: query, rewrittenQuery: null, cacheHit: false };

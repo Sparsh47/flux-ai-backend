@@ -12,7 +12,7 @@ chatRouter.post("/", async (req: Request, res: Response) => {
 
     const files = Array.isArray(fileKeys) ? fileKeys : (fileKeys ? [fileKeys] : []);
 
-    console.log("CHAT ROUTER[FILE KEYS]: ", fileKeys);
+    logger.info({ bodySessionId: sessionId, cookieUserId: userId, fileCount: files.length }, "CHAT ROUTER session info");
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
@@ -46,7 +46,11 @@ chatRouter.post("/", async (req: Request, res: Response) => {
             result += (chunk as string)
         }
 
-        const fileNames = files.map((f: any) => f.name);
+        const fileNames = files.map((f: string) => {
+            const base = f.split("/").pop() ?? f;
+            // Strip UUID prefix (e.g. "c91c137b-4065-4458-8921-a69663691541-DATING APP.pdf" -> "DATING APP.pdf")
+            return base.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "");
+        });
         updateMemory(history, query, result, fileNames, sessionId, userId);
 
         res.end()

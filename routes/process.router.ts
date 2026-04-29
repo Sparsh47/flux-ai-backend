@@ -7,12 +7,16 @@ import { Queue } from "bullmq";
 export const processRouter = Router();
 
 processRouter.post("/", async (req: Request, res: Response) => {
-    const { fileKeys = [], sessionId } = req.body;
+    const { fileKeys = [], sessionId: bodySessionId } = req.body;
+    // Prefer the body sessionId (the frontend's chat session) with cookie as fallback
+    const sessionId = bodySessionId || req.sessionId;
 
     if (!fileKeys.length) {
         res.status(400).json({ error: "No file keys provided." })
         return;
     }
+
+    logger.info({ sessionId, fileCount: fileKeys.length }, "PROCESS ROUTER: ingesting files with userId=sessionId");
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");

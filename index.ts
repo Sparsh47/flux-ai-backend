@@ -11,9 +11,8 @@ import { RewriteResult } from "./query.js";
 import { saveRAGTrace } from "./lib/trace.js";
 
 const model = new ChatOllama({
-  baseUrl: BASE_URL,
+  baseURL: BASE_URL,
   model: MODEL,
-  temperature: 0,
 } as any);
 
 interface Message {
@@ -27,9 +26,9 @@ interface History {
 }
 
 export async function runRag(
-  query: string, 
-  history: History, 
-  sessionId: string = "default", 
+  query: string,
+  history: History,
+  sessionId: string = "default",
   fileKeys: string[] = [],
   rewriteInfo?: RewriteResult
 ) {
@@ -37,7 +36,10 @@ export async function runRag(
   try {
     const { chunks: bestChunks, scores, count } = await retrieveChunks(query, history, userId, fileKeys);
 
-    if (!bestChunks) return "";
+    if (bestChunks.length === 0) {
+      logger.warn({ sessionId, query }, "No chunks retrieved from Qdrant — returning empty");
+      return "";
+    }
 
     const prompt = ChatPromptTemplate.fromMessages([
       [
@@ -90,25 +92,23 @@ export async function runRag(
 
     // Track cost
     await trackLLMCost(
-        sessionId,
-        Tool.AGENT,
-        MODEL,
-        res,
-        latencyMs
+      sessionId,
+      Tool.AGENT,
+      MODEL,
+      res,
+      latencyMs
     );
 
-    // Save trace
-    if (rewriteInfo) {
-        await saveRAGTrace({
-            sessionId,
-            originalQuery: rewriteInfo.originalQuery,
-            rewrittenQuery: rewriteInfo.rewrittenQuery,
-            cacheHit: rewriteInfo.cacheHit,
-            similarityScores: scores,
-            chunksReturned: count,
-            toolSelected: "rag"
-        });
-    }
+    // Always save a RAG trace regardless of whether query rewriting occurred
+    await saveRAGTrace({
+      sessionId,
+      originalQuery: rewriteInfo?.originalQuery ?? query,
+      rewrittenQuery: rewriteInfo?.rewrittenQuery ?? null,
+      cacheHit: rewriteInfo?.cacheHit ?? false,
+      similarityScores: scores,
+      chunksReturned: count,
+      chunks: bestChunks,
+    });
 
     return res.content;
   } catch (err) {
@@ -170,12 +170,20 @@ async function retrieveChunks(query: string, history: History, userId: string = 
 
     logger.debug({ userId, chunkCount: result.points.length }, "Retrieved chunks from Qdrant");
 
-    const scores = result.points.map((p: any) => p.score);
-    const count = result.points.length;
+    const rawPoints = result.points as Array<{ score: number; payload?: { chunk?: string } }>;
+    const rawScores = rawPoints.map((p) => p.score);
+    const rawChunks = rawPoints.map((p) => p.payload?.chunk as string);
 
-    const reranked = await rerankChunks(query, result.points.map((c: any) => c.payload?.chunk as string));
+    const reranked = await rerankChunks(query, rawChunks);
+    const top5 = reranked.slice(0, 5);
 
-    return { chunks: reranked.slice(0, 5), scores, count };
+    // Align scores to the reranked chunks so the trace is meaningful
+    const top5Scores = top5.map((chunk) => {
+      const originalIndex = rawChunks.indexOf(chunk);
+      return originalIndex !== -1 ? rawScores[originalIndex] : 0;
+    });
+
+    return { chunks: top5, scores: top5Scores, count: rawPoints.length };
   } catch (err) {
     logger.error({ err, userId }, "Failed to retrieve chunks");
     return { chunks: [], scores: [], count: 0 };
@@ -185,7 +193,7 @@ async function retrieveChunks(query: string, history: History, userId: string = 
 async function rerankChunks(query: string, chunks: string[]) {
   try {
     const model = new ChatOllama({
-      baseUrl: BASE_URL,
+      baseURL: BASE_URL,
       model: MODEL,
       temperature: 0,
     } as any);
@@ -242,13 +250,13 @@ Output:
     )
     const latencyMs = performance.now() - llmStart;
 
-    // Track cost
+    // Track cost — tag as REWRITE since this is a reranking/sorting step, not the main generation
     await trackLLMCost(
-        "system",
-        Tool.AGENT,
-        MODEL,
-        result,
-        latencyMs
+      "system",
+      Tool.REWRITE,
+      MODEL,
+      result,
+      latencyMs
     );
 
     let indices: number[];

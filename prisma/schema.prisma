@@ -63,6 +63,6 @@ model RagTrace {
   cacheHit Boolean
   similarityScores Json
   chunksReturned Int
-  toolSelected String
+  chunks Json
   createdAt DateTime @default(now())
 }

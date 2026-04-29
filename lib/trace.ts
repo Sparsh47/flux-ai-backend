@@ -8,7 +8,7 @@ export interface RAGTraceInput {
     cacheHit: boolean;
     similarityScores: number[];
     chunksReturned: number;
-    toolSelected: string;
+    chunks: string[];
 }
 
 export async function saveRAGTrace(input: RAGTraceInput) {
@@ -21,7 +21,7 @@ export async function saveRAGTrace(input: RAGTraceInput) {
                 cacheHit: input.cacheHit,
                 similarityScores: input.similarityScores,
                 chunksReturned: input.chunksReturned,
-                toolSelected: input.toolSelected,
+                chunks: input.chunks,
             }
         });
         logger.debug({ sessionId: input.sessionId }, "RAG trace saved successfully");

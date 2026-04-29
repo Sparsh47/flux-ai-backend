@@ -8,7 +8,7 @@ import { Tool } from "@prisma/client";
 
 export async function runChat(query: string): Promise<string> {
   const model = new ChatOllama({
-    baseUrl: BASE_URL,
+    baseURL: BASE_URL,
     model: MODEL,
     temperature: 0,
   } as any);

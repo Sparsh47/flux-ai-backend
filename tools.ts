@@ -8,7 +8,6 @@ import { runRag } from "./index.js";
 import { runChat } from "./chat.js";
 import { rewriteQuery } from "./query.js";
 import { logger } from "./config/logger.js";
-import { AIMessageChunk } from "langchain";
 import pRetry from "p-retry";
 import { trackLLMCost } from "./lib/cost.js";
 import { Tool } from "@prisma/client";
@@ -121,7 +120,7 @@ const stringTools = [toUpperCaseTool, toLowerCaseTool, getLengthTool];
 
 export async function runTool(query: string) {
   const model = new ChatOllama({
-    baseUrl: BASE_URL,
+    baseURL: BASE_URL,
     model: MODEL,
     temperature: 0,
   } as any).bindTools(mathTools);
@@ -217,14 +216,18 @@ export async function* runToolAgent(
   files: any[] = []
 ) {
   const hasFiles = files && files.length > 0;
-  const fileNames = files.map(f => typeof f === 'string' ? f.split("/").pop() : f.name);
+  const fileNames = files.map(f => {
+    const raw = typeof f === 'string' ? f.split("/").pop() : f.name;
+    // Strip UUID prefix (e.g. "c91c137b-...-DATING APP.pdf" -> "DATING APP.pdf")
+    return (raw ?? "").replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "");
+  });
   const fileKeys = files.map(f => typeof f === 'string' ? f : f.key);
 
   const ragSearch = tool(
     async ({ query: q }: { query: string }) => {
       logger.info({ query: q }, "Running ragSearch tool");
 
-      const rewriteResult = await rewriteQuery(q, history);
+      const rewriteResult = await rewriteQuery(q, history, fileNames);
       const rewrittenQuery = rewriteResult.query;
 
       const result = await runRag(rewrittenQuery, history, sessionId, fileKeys, rewriteResult);
@@ -273,10 +276,10 @@ Use for:
     : [...mathTools, ...stringTools, chatFallback];
 
   const model = new ChatOllama({
-    baseUrl: BASE_URL,
+    baseURL: BASE_URL,
     model: MODEL,
     temperature: 0,
-    maxRetries: 3,
+    maxRetries: 3
   } as any);
 
   const systemPrompt = `You are an intelligent assistant.
